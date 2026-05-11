@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
-import 'package:path/path.dart' as path;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:video_player/video_player.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String userId;
@@ -153,10 +157,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
         'content': type == 'image'
             ? '[Image]'
             : type == 'video'
-            ? '[Video]'
-            : type == 'contact'
-            ? '[Contact]'
-            : '[File]',
+                ? '[Video]'
+                : type == 'contact'
+                    ? '[Contact]'
+                    : '[File]',
         'sender_id': _currentUserId,
         'receiver_id': _receiverId,
         'status': 'sent',
@@ -169,27 +173,49 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
     }
   }
 
-  Future<String?> _uploadFile(File file, String folder) async {
+  // ── Cloudinary Configuration ──
+  static final String _cloudinaryCloudName = dotenv.get('CLOUDINARY_CLOUD_NAME');
+  static final String _cloudinaryUploadPreset = dotenv.get('CLOUDINARY_UPLOAD_PRESET');
+
+  /// Compress image before uploading to reduce bandwidth and storage.
+  Future<File> _compressImage(File file) async {
+    final targetPath = '${file.path}_compressed.jpg';
+    final compressedFile = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      targetPath,
+      quality: 60,
+    );
+    return compressedFile != null ? File(compressedFile.path) : file;
+  }
+
+  /// Upload a file to Cloudinary using an unsigned upload preset.
+  /// [resourceType] should be 'image', 'video', or 'auto'.
+  Future<String?> _uploadToCloudinary(File file, String resourceType) async {
     setState(() => _isUploading = true);
     try {
-      final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${path.basename(file.path)}';
-      final filePath = '$_currentUserId/$folder/$fileName';
+      final url = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$_cloudinaryCloudName/$resourceType/upload',
+      );
 
-      await _supabase.storage
-          .from('chat_attachments')
-          .upload(
-            filePath,
-            file,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-          );
+      final request = http.MultipartRequest('POST', url);
+      request.fields['upload_preset'] = _cloudinaryUploadPreset;
+      request.files.add(
+        await http.MultipartFile.fromPath('file', file.path),
+      );
 
-      final String publicUrl = _supabase.storage
-          .from('chat_attachments')
-          .getPublicUrl(filePath);
-      return publicUrl;
+      final response = await request.send();
+
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        final data = jsonDecode(responseData);
+        return data['secure_url'] as String?;
+      } else {
+        final errorBody = await response.stream.bytesToString();
+        debugPrint('Cloudinary upload failed (${response.statusCode}): $errorBody');
+        return null;
+      }
     } catch (e) {
-      debugPrint("Upload Error: $e");
+      debugPrint('Cloudinary upload error: $e');
       return null;
     } finally {
       setState(() => _isUploading = false);
@@ -201,7 +227,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
     if (image != null) {
       if (!mounted) return;
       Navigator.pop(context);
-      final url = await _uploadFile(File(image.path), 'images');
+      // Compress then upload to Cloudinary
+      File originalFile = File(image.path);
+      File compressedFile = await _compressImage(originalFile);
+      final url = await _uploadToCloudinary(compressedFile, 'image');
       if (url != null) _sendAttachment(url, 'image');
     }
   }
@@ -211,7 +240,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
     if (video != null) {
       if (!mounted) return;
       Navigator.pop(context);
-      final url = await _uploadFile(File(video.path), 'videos');
+      // Upload video directly to Cloudinary (no compression on client)
+      final url = await _uploadToCloudinary(File(video.path), 'video');
       if (url != null) _sendAttachment(url, 'video');
     }
   }
@@ -222,11 +252,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
       if (result != null && result.files.single.path != null) {
         if (!mounted) return;
         Navigator.pop(context);
-        final url = await _uploadFile(File(result.files.single.path!), 'files');
+        final url = await _uploadToCloudinary(
+          File(result.files.single.path!),
+          'auto',
+        );
         if (url != null) _sendAttachment(url, 'file');
       }
     } catch (e) {
-      debugPrint("File picker error: $e");
+      debugPrint('File picker error: $e');
     }
   }
 
@@ -638,40 +671,55 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
     );
   }
 
-  Widget _buildAttachmentPreview(String url, String type, bool isMe) {
+  Widget _buildAttachmentPreview(String url, String? type, bool isMe) {
     if (type == 'image') {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: Image.network(
-          url,
-          width: 200,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return const SizedBox(
-              width: 200,
-              height: 200,
-              child: Center(child: CircularProgressIndicator()),
-            );
-          },
-        ),
-      );
-    } else if (type == 'video') {
-      return Container(
-        width: 200,
-        height: 120,
-        decoration: BoxDecoration(
-          color: Colors.black26,
+      return GestureDetector(
+        onTap: () => _showFullScreenImage(context, url),
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(15),
-        ),
-        child: const Center(
-          child: Icon(
-            Icons.play_circle_fill_rounded,
-            color: Colors.white,
-            size: 50,
+          child: Image.network(
+            url,
+            width: 200,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return SizedBox(
+                width: 200,
+                height: 200,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+                    strokeWidth: 2,
+                    color: isMe ? Colors.white : const Color(0xFF4A00E0),
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: 200,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: isMe ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.broken_image_rounded,
+                    color: isMe ? Colors.white70 : Colors.grey,
+                    size: 40,
+                  ),
+                ),
+              );
+            },
           ),
         ),
       );
+    } else if (type == 'video') {
+      return _VideoThumbnailWidget(url: url, isMe: isMe);
     } else {
       return Container(
         width: 200,
@@ -687,10 +735,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
               color: isMe ? Colors.white : Colors.blue,
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
                 "Attachment",
-                style: TextStyle(color: Colors.white, fontSize: 13),
+                style: TextStyle(
+                  color: isMe ? Colors.white : Colors.black87,
+                  fontSize: 13,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -698,6 +749,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
         ),
       );
     }
+  }
+
+  void _showFullScreenImage(BuildContext context, String url) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              child: Image.network(url),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   // ignore: unused_element
@@ -815,6 +886,120 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
         icon,
         color: isPrimary ? Colors.white : const Color(0xFF4A00E0),
         size: 22,
+      ),
+    );
+  }
+}
+
+/// Inline video thumbnail widget that plays video from Cloudinary URL.
+class _VideoThumbnailWidget extends StatefulWidget {
+  final String url;
+  final bool isMe;
+
+  const _VideoThumbnailWidget({required this.url, required this.isMe});
+
+  @override
+  State<_VideoThumbnailWidget> createState() => _VideoThumbnailWidgetState();
+}
+
+class _VideoThumbnailWidgetState extends State<_VideoThumbnailWidget> {
+  VideoPlayerController? _controller;
+  bool _isPlaying = false;
+  bool _initialized = false;
+
+  void _initPlayer() {
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() => _initialized = true);
+          _controller!.play();
+          _isPlaying = true;
+        }
+      });
+
+    _controller!.addListener(() {
+      if (mounted) {
+        // When video ends, show the play button again
+        if (_controller!.value.position >= _controller!.value.duration &&
+            _controller!.value.duration > Duration.zero) {
+          setState(() => _isPlaying = false);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (!_initialized) {
+          _initPlayer();
+        } else if (_isPlaying) {
+          _controller?.pause();
+          setState(() => _isPlaying = false);
+        } else {
+          _controller?.play();
+          setState(() => _isPlaying = true);
+        }
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: SizedBox(
+          width: 220,
+          height: 160,
+          child: _initialized && _controller != null
+              ? Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: _controller!.value.aspectRatio,
+                      child: VideoPlayer(_controller!),
+                    ),
+                    if (!_isPlaying)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(8),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 36,
+                        ),
+                      ),
+                  ],
+                )
+              : Container(
+                  color: Colors.black26,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: widget.isMe ? Colors.white : Colors.white70,
+                          size: 50,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tap to play',
+                          style: TextStyle(
+                            color: widget.isMe ? Colors.white70 : Colors.white54,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ),
       ),
     );
   }

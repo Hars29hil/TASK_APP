@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -178,19 +179,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
   static final String _cloudinaryUploadPreset = dotenv.get('CLOUDINARY_UPLOAD_PRESET');
 
   /// Compress image before uploading to reduce bandwidth and storage.
-  Future<File> _compressImage(File file) async {
-    final targetPath = '${file.path}_compressed.jpg';
-    final compressedFile = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      targetPath,
-      quality: 60,
-    );
-    return compressedFile != null ? File(compressedFile.path) : file;
+  /// Skips compression on web since dart:io is not available.
+  Future<File?> _compressImage(File file) async {
+    if (kIsWeb) return file; // compression not supported on web
+    try {
+      final targetPath = '${file.path}_compressed.jpg';
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: 60,
+      );
+      return compressedFile != null ? File(compressedFile.path) : file;
+    } catch (e) {
+      debugPrint('Compression failed, using original: $e');
+      return file;
+    }
   }
 
   /// Upload a file to Cloudinary using an unsigned upload preset.
-  /// [resourceType] should be 'image', 'video', or 'auto'.
-  Future<String?> _uploadToCloudinary(File file, String resourceType) async {
+  /// Supports both mobile (File) and web (XFile bytes).
+  Future<String?> _uploadToCloudinary(dynamic file, String resourceType) async {
     setState(() => _isUploading = true);
     try {
       final url = Uri.parse(
@@ -199,9 +207,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
 
       final request = http.MultipartRequest('POST', url);
       request.fields['upload_preset'] = _cloudinaryUploadPreset;
-      request.files.add(
-        await http.MultipartFile.fromPath('file', file.path),
-      );
+
+      if (kIsWeb && file is XFile) {
+        // Web: read bytes from XFile
+        final bytes = await file.readAsBytes();
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: file.name,
+          ),
+        );
+      } else if (file is File) {
+        request.files.add(
+          await http.MultipartFile.fromPath('file', file.path),
+        );
+      } else if (file is XFile) {
+        request.files.add(
+          await http.MultipartFile.fromPath('file', file.path),
+        );
+      }
 
       final response = await request.send();
 
@@ -227,10 +252,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
     if (image != null) {
       if (!mounted) return;
       Navigator.pop(context);
-      // Compress then upload to Cloudinary
-      File originalFile = File(image.path);
-      File compressedFile = await _compressImage(originalFile);
-      final url = await _uploadToCloudinary(compressedFile, 'image');
+
+      String? url;
+      if (kIsWeb) {
+        // Web: skip compression, upload XFile directly
+        url = await _uploadToCloudinary(image, 'image');
+      } else {
+        // Mobile: compress then upload
+        File originalFile = File(image.path);
+        File? compressedFile = await _compressImage(originalFile);
+        url = await _uploadToCloudinary(compressedFile ?? originalFile, 'image');
+      }
       if (url != null) _sendAttachment(url, 'image');
     }
   }
@@ -240,9 +272,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
     if (video != null) {
       if (!mounted) return;
       Navigator.pop(context);
-      // Upload video directly to Cloudinary (no compression on client)
-      final url = await _uploadToCloudinary(File(video.path), 'video');
-      if (url != null) _sendAttachment(url, 'video');
+      if (kIsWeb) {
+        final url = await _uploadToCloudinary(video, 'video');
+        if (url != null) _sendAttachment(url, 'video');
+      } else {
+        final url = await _uploadToCloudinary(File(video.path), 'video');
+        if (url != null) _sendAttachment(url, 'video');
+      }
     }
   }
 

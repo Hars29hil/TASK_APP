@@ -1,0 +1,60 @@
+import admin from "firebase-admin";
+import { readFile } from "fs/promises";
+
+// Load service account using fs for better compatibility with ES Modules
+const serviceAccount = JSON.parse(
+  await readFile(new URL("./avd-3690-firebase-adminsdk-fbsvc-ef8f74fa07.json", import.meta.url))
+);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+export const sendPushNotification = async (fcmToken, title, body, data = {}) => {
+  try {
+    // FCM requires all data values to be strings
+    const stringData = {};
+    Object.keys(data).forEach(key => {
+      stringData[key] = String(data[key]);
+    });
+
+    // Add standard Flutter click action if not present
+    if (!stringData.click_action) {
+      stringData.click_action = "FLUTTER_NOTIFICATION_CLICK";
+    }
+
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: title,
+        body: body,
+      },
+      android: {
+        priority: "high",
+        notification: {
+          sound: "default",
+          priority: "high",
+          channelId: "high_importance_channel", // Matches common Flutter setups
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: "default",
+            contentAvailable: true, // Important for background processing
+          },
+        },
+      },
+      data: stringData,
+    };
+
+    const response = await admin.messaging().send(message);
+    console.log("✅ Notification sent successfully:", response);
+    return response;
+  } catch (error) {
+    console.error("❌ Error sending notification:", error);
+    throw error;
+  }
+};
+
+export default admin;

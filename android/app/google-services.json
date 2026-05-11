@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "641104976519",
+    "project_id": "avd-3690",
+    "storage_bucket": "avd-3690.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:641104976519:android:9cd44097b537099ffcb622",
+        "android_client_info": {
+          "package_name": "com.example.chatapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxXLdIOfJrnKiZtTLA74j2wjmL2Ku8tuU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

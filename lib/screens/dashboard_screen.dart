@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'chat_list_screen.dart';
+import 'task_list_screen.dart';
+import 'create_task_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -102,7 +104,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildTaskCenter() {
-    return const Center(child: Text("Task Center Coming Soon"));
+    return const TaskListScreen();
   }
 
   PreferredSizeWidget _buildAppBar() {
@@ -185,18 +187,23 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ],
           ),
-          child: Row(
-            children: const [
-              Icon(Icons.add, color: Colors.white, size: 20),
-              SizedBox(width: 5),
-              Text(
-                "New Task",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTaskScreen()));
+            },
+            child: Row(
+              children: const [
+                Icon(Icons.add, color: Colors.white, size: 20),
+                SizedBox(width: 5),
+                Text(
+                  "New Task",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

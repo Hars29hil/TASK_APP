@@ -319,6 +319,11 @@ app.post("/message-webhook", async (req, res) => {
                 console.log(`✅ Success: Notification sent to ${receiver_id}`);
             } catch (sendError) {
                 console.error("❌ Firebase Send Error:", sendError.message);
+                // If token is invalid, clear it
+                if (sendError.message.includes("not-found") || sendError.message.includes("not-registered")) {
+                    console.log(`🧹 Cleaning up invalid token for ${receiver_id}`);
+                    await supabase.from('profiles').update({ fcm_token: null }).eq('id', receiver_id);
+                }
             }
         } else {
             console.log(`⚠️ Skip: Receiver ${receiver_id} has no FCM token in DB.`);
@@ -365,6 +370,11 @@ async function sendTaskNotification(userId, taskId, type, title, body) {
         }
     } catch (err) {
         console.error(`❌ Error sending task notification:`, err.message);
+        // If token is invalid, clear it
+        if (err.message.includes("not-found") || err.message.includes("not-registered")) {
+            console.log(`🧹 Cleaning up invalid token for user ${userId}`);
+            await supabase.from('profiles').update({ fcm_token: null }).eq('id', userId);
+        }
     }
 }
 
@@ -991,6 +1001,6 @@ app.put("/notifications/:notificationId/read", async (req, res) => {
 // START SERVER
 // ======================================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT} (Accessible at http://10.79.145.66:${PORT})`);
 });

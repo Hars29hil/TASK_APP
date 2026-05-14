@@ -413,7 +413,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4A00E0).withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -443,16 +443,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     bool isActive = _selectedIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.elasticOut,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? const Color(0xFF4A00E0).withValues(alpha: 0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: Colors.transparent, // Ensure hit test works
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -462,22 +455,18 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: Icon(
                 icon,
                 color: isActive ? const Color(0xFF4A00E0) : Colors.grey[400],
-                size: 26,
+                size: 28,
               ),
             ),
-            if (isActive)
-              AnimatedOpacity(
-                opacity: isActive ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF4A00E0),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? const Color(0xFF4A00E0) : Colors.transparent,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
               ),
+            ),
           ],
         ),
       ),

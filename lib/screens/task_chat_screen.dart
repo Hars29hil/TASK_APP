@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 
 class TaskChatScreen extends StatefulWidget {
   final String taskId;
@@ -21,7 +22,23 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
   bool _isSending = false;
   RealtimeChannel? _channel;
 
-  String get _backendUrl => dotenv.maybeGet('BACKEND_URL') ?? 'http://10.0.2.2:5000';
+  String get _backendUrl {
+    if (kIsWeb) {
+      final envUrl = dotenv.maybeGet('BACKEND_URL');
+      if (envUrl != null && envUrl.contains('http') && !envUrl.contains('10.0.2.2')) {
+        return envUrl;
+      }
+      return 'http://localhost:5000';
+    }
+
+    final envUrl = dotenv.maybeGet('BACKEND_URL');
+    if (envUrl != null && envUrl.isNotEmpty) return envUrl;
+    
+    if (Theme.of(context).platform == TargetPlatform.android) {
+      return 'http://10.0.2.2:5000';
+    }
+    return 'http://localhost:5000';
+  }
   String get _currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   @override

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 import 'create_task_screen.dart';
 import 'task_detail_screen.dart';
 
@@ -23,8 +24,23 @@ class _TaskListScreenState extends State<TaskListScreen>
   late Animation<double> _fabAnimation;
   RealtimeChannel? _taskChannel;
 
-  String get _backendUrl =>
-      dotenv.maybeGet('BACKEND_URL') ?? 'http://10.0.2.2:5000';
+  String get _backendUrl {
+    if (kIsWeb) {
+      final envUrl = dotenv.maybeGet('BACKEND_URL');
+      if (envUrl != null && envUrl.contains('http') && !envUrl.contains('10.0.2.2')) {
+        return envUrl;
+      }
+      return 'http://localhost:5000';
+    }
+
+    final envUrl = dotenv.maybeGet('BACKEND_URL');
+    if (envUrl != null && envUrl.isNotEmpty) return envUrl;
+    
+    if (Theme.of(context).platform == TargetPlatform.android) {
+      return 'http://10.0.2.2:5000';
+    }
+    return 'http://localhost:5000';
+  }
 
   @override
   void initState() {
@@ -109,16 +125,19 @@ class _TaskListScreenState extends State<TaskListScreen>
             : _filteredTasks.isEmpty ? _buildEmpty() : _buildList()),
         ]),
       ),
-      floatingActionButton: ScaleTransition(
-        scale: _fabAnimation,
-        child: FloatingActionButton.extended(
-          onPressed: () async {
-            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTaskScreen()));
-            if (result == true) _fetchTasks();
-          },
-          backgroundColor: const Color(0xFF4A00E0),
-          icon: const Icon(Icons.add_rounded, color: Colors.white),
-          label: const Text("New Task", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 90), // Lifted to avoid nav bar
+        child: ScaleTransition(
+          scale: _fabAnimation,
+          child: FloatingActionButton.extended(
+            onPressed: () async {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTaskScreen()));
+              if (result == true) _fetchTasks();
+            },
+            backgroundColor: const Color(0xFF4A00E0),
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text("New Task", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
         ),
       ),
     );
@@ -135,27 +154,36 @@ class _TaskListScreenState extends State<TaskListScreen>
   );
 
   Widget _buildStats() => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 10, 20, 5),
+    padding: const EdgeInsets.fromLTRB(20, 10, 20, 15),
     child: Row(children: [
-      _miniStat("Active", _activeTasks, const Color(0xFF4A00E0)),
+      _miniStat("Active", _activeTasks, const Color(0xFF6366F1), Icons.bolt_rounded),
       const SizedBox(width: 12),
-      _miniStat("Done", _completedTasks, const Color(0xFF34C759)),
+      _miniStat("Done", _completedTasks, const Color(0xFF10B981), Icons.check_circle_rounded),
       const SizedBox(width: 12),
-      _miniStat("Total", _tasks.length, const Color(0xFFFF9500)),
+      _miniStat("Total", _tasks.length, const Color(0xFFF59E0B), Icons.folder_rounded),
     ]),
   );
 
-  Widget _miniStat(String label, int count, Color c) => Expanded(
+  Widget _miniStat(String label, int count, Color c, IconData icon) => Expanded(
     child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [c.withValues(alpha: 0.1), c.withValues(alpha: 0.05)]),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: c.withValues(alpha: 0.2)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: c.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+        border: Border.all(color: c.withValues(alpha: 0.05)),
       ),
       child: Column(children: [
-        Text("$count", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: c)),
-        Text(label, style: TextStyle(fontSize: 11, color: c.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+        Icon(icon, size: 16, color: c.withValues(alpha: 0.6)),
+        const SizedBox(height: 8),
+        Text("$count", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: c)),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.bold)),
       ]),
     ),
   );

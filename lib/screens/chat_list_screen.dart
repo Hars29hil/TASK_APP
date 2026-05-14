@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'chat_detail_screen.dart';
+import 'task_chat_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -14,8 +15,10 @@ class _ChatListScreenState extends State<ChatListScreen>
   late AnimationController _staggerController;
   final TextEditingController _searchController = TextEditingController();
   final _supabase = Supabase.instance.client;
-  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _allItems = [];
+  String _activeTab = "All";
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -25,27 +28,92 @@ class _ChatListScreenState extends State<ChatListScreen>
       vsync: this,
     )..forward();
 
-    // Initial fetch of users
-    _searchUsers("");
+    // Initial fetch
+    _fetchData("");
   }
 
-  Future<void> _searchUsers(String query) async {
-    setState(() => _isLoading = true);
-    try {
-      final response = await _supabase
-          .from('profiles')
-          .select()
-          .ilike('full_name', '%$query%')
-          .neq('id', _supabase.auth.currentUser?.id ?? '') // Hide my own account
-          .limit(10);
+  Future<void> _fetchData(String query) async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-      setState(() {
-        _users = List<Map<String, dynamic>>.from(response);
-        _isLoading = false;
-      });
+    try {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // 1. Fetch Users (1-on-1)
+      // We search both full_name and email to be safe
+      var userQuery = _supabase.from('profiles').select();
+      
+      if (query.isNotEmpty) {
+        userQuery = userQuery.or('full_name.ilike.%$query%,email.ilike.%$query%');
+      }
+
+      final userResponse = await userQuery
+          .neq('id', currentUserId)
+          .limit(20);
+
+      // 2. Fetch Task Groups (Separated to avoid 500 join errors)
+      final membershipResponse = await _supabase
+          .from('task_members')
+          .select('task_id, role')
+          .eq('user_id', currentUserId);
+
+      List<Map<String, dynamic>> items = [];
+
+      // Add Users
+      for (var u in userResponse) {
+        items.add({
+          ...u, 
+          'isGroup': false,
+          'display_name': (u['full_name'] != null && u['full_name'].toString().isNotEmpty) 
+              ? u['full_name'] 
+              : u['email']?.toString().split('@')[0] ?? "User"
+        });
+      }
+
+      // Add Tasks
+      if (membershipResponse.isNotEmpty) {
+        final taskIds = membershipResponse.map((m) => m['task_id']).toList();
+        final tasksDetails = await _supabase
+            .from('tasks')
+            .select('id, title, status')
+            .inFilter('id', taskIds);
+
+        for (var task in tasksDetails) {
+          final membership = membershipResponse.firstWhere((m) => m['task_id'] == task['id']);
+          if (query.isEmpty || task['title'].toString().toLowerCase().contains(query.toLowerCase())) {
+            items.add({
+              'id': task['id'],
+              'full_name': task['title'],
+              'display_name': task['title'],
+              'status': task['status'],
+              'isGroup': true,
+              'role': membership['role'],
+            });
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _allItems = items;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
-      debugPrint("Error fetching users: $e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
+      }
+      debugPrint("Error fetching chat data: $e");
     }
   }
 
@@ -88,7 +156,11 @@ class _ChatListScreenState extends State<ChatListScreen>
                 Expanded(
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : _buildChatList(),
+                      : RefreshIndicator(
+                          onRefresh: () => _fetchData(""),
+                          color: const Color(0xFF4A00E0),
+                          child: _buildChatList(),
+                        ),
                 ),
               ],
             ),
@@ -162,11 +234,11 @@ class _ChatListScreenState extends State<ChatListScreen>
         ),
         child: TextField(
           controller: _searchController,
-          onSubmitted: (val) => _searchUsers(val),
+          onChanged: (val) => _fetchData(val), // Instant search as you type
           decoration: const InputDecoration(
-            hintText: "Search users...",
+            hintText: "Search name or task...",
             border: InputBorder.none,
-            icon: Icon(Icons.search, color: Colors.grey),
+            icon: Icon(Icons.search, color: Color(0xFF4A00E0)),
             suffixIcon: Icon(Icons.tune_rounded, color: Colors.grey),
           ),
         ),
@@ -180,92 +252,142 @@ class _ChatListScreenState extends State<ChatListScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _tabItem("All", true),
-          _tabItem("Unread", false, count: 3),
-          _tabItem("Groups", false),
-          _tabItem("Favorites", false),
+          _tabItem("All", _activeTab == "All"),
+          _tabItem("Groups", _activeTab == "Groups"),
         ],
       ),
     );
   }
 
   Widget _tabItem(String label, bool isActive, {int? count}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isActive
-            ? const Color(0xFF4A00E0)
-            : Colors.white.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? Colors.white : Colors.grey,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-          ),
-          if (count != null) ...[
-            const SizedBox(width: 5),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Color(0xFF8E2DE2),
-                shape: BoxShape.circle,
+    return GestureDetector(
+      onTap: () => setState(() => _activeTab = label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive
+              ? const Color(0xFF4A00E0)
+              : Colors.white.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? Colors.white : Colors.grey,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
               ),
-              child: Text(
-                count.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+            ),
+            if (count != null) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF8E2DE2),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  count.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildChatList() {
-    if (_users.isEmpty) {
-      return const Center(
-        child: Text("No users found", style: TextStyle(color: Colors.grey)),
+    List<Map<String, dynamic>> filtered = _allItems;
+    if (_activeTab == "Groups") {
+      filtered = _allItems.where((i) => i['isGroup'] == true).toList();
+    } else if (_activeTab == "All") {
+      filtered = _allItems;
+    } else {
+      // For demo, just return empty for others
+      filtered = [];
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 40, color: Colors.red),
+              const SizedBox(height: 10),
+              Text("Database Error: $_errorMessage", 
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
+              TextButton(onPressed: () => _fetchData(""), child: const Text("Try Again"))
+            ],
+          ),
+        ),
       );
     }
-    
-    final Set<String> seenIds = {};
-    final uniqueUsers = _users.where((u) => seenIds.add(u['id'].toString())).toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 50, color: Colors.grey[300]),
+            const SizedBox(height: 10),
+            Text("No chats found", style: TextStyle(color: Colors.grey[400])),
+          ],
+        ),
+      );
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
-      itemCount: uniqueUsers.length,
+      itemCount: filtered.length,
       itemBuilder: (context, index) {
-        return _buildChatTile(uniqueUsers[index]);
+        return _buildChatTile(filtered[index]);
       },
     );
   }
 
-  Widget _buildChatTile(Map<String, dynamic> user) {
+  Widget _buildChatTile(Map<String, dynamic> item) {
+    final bool isGroup = item['isGroup'] ?? false;
+    
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 600),
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              ChatDetailScreen(
-                userId: user['id'],
-                userName: user['full_name'] ?? "Unknown User",
+      onTap: () {
+        if (isGroup) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TaskChatScreen(
+                taskId: item['id'],
+                taskTitle: item['full_name'],
               ),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      ),
+            ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 600),
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  ChatDetailScreen(
+                userId: item['id'],
+                userName: item['display_name'] ?? "Unknown User",
+              ),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+            ),
+          );
+        }
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 15),
         padding: const EdgeInsets.all(12),
@@ -285,15 +407,19 @@ class _ChatListScreenState extends State<ChatListScreen>
             Stack(
               children: [
                 Hero(
-                  tag: 'chat_avatar_${user['id']}',
+                  tag: 'chat_avatar_${item['id']}_${isGroup ? 'group' : 'user'}',
                   child: CircleAvatar(
                     radius: 28,
-                    backgroundImage: NetworkImage(
-                      'https://i.pravatar.cc/150?u=${user['id']}',
-                    ),
+                    backgroundColor: isGroup ? const Color(0xFF4A00E0) : Colors.grey[200],
+                    backgroundImage: isGroup 
+                      ? null 
+                      : NetworkImage('https://i.pravatar.cc/150?u=${item['id']}'),
+                    child: isGroup 
+                      ? const Icon(Icons.groups_rounded, color: Colors.white, size: 28)
+                      : null,
                   ),
                 ),
-                Positioned(
+                if (!isGroup) Positioned(
                   bottom: 2,
                   right: 2,
                   child: Container(
@@ -316,12 +442,27 @@ class _ChatListScreenState extends State<ChatListScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        user['full_name'] ?? "Unknown User",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            item['display_name'] ?? "Unknown",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (isGroup) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4A00E0).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: const Text("TASK", style: TextStyle(color: Color(0xFF4A00E0), fontSize: 9, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ],
                       ),
                       Text(
                         "Now",
@@ -330,12 +471,12 @@ class _ChatListScreenState extends State<ChatListScreen>
                     ],
                   ),
                   const SizedBox(height: 5),
-                  const Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "Tap to start chatting...",
-                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                        isGroup ? "Group chat for this task..." : "Tap to start chatting...",
+                        style: const TextStyle(color: Colors.grey, fontSize: 13),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

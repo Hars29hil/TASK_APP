@@ -116,14 +116,19 @@ class _TaskListScreenState extends State<TaskListScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       body: SafeArea(
-        child: Column(children: [
-          _buildHeader(),
-          _buildStats(),
-          _buildFilters(),
-          Expanded(child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A00E0)))
-            : _filteredTasks.isEmpty ? _buildEmpty() : _buildList()),
-        ]),
+        child: Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: Column(children: [
+              _buildHeader(),
+              _buildStats(),
+              _buildFilters(),
+              Expanded(child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A00E0)))
+                : _filteredTasks.isEmpty ? _buildEmpty() : _buildList()),
+            ]),
+          ),
+        ),
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 90), // Lifted to avoid nav bar
@@ -225,10 +230,27 @@ class _TaskListScreenState extends State<TaskListScreen>
 
   Widget _buildList() => RefreshIndicator(
     onRefresh: _fetchTasks, color: const Color(0xFF4A00E0),
-    child: ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
-      itemCount: _filteredTasks.length,
-      itemBuilder: (ctx, i) => _taskCard(_filteredTasks[i]),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth > 600) {
+          return GridView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.8,
+            ),
+            itemCount: _filteredTasks.length,
+            itemBuilder: (ctx, i) => _taskCard(_filteredTasks[i]),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+          itemCount: _filteredTasks.length,
+          itemBuilder: (ctx, i) => _taskCard(_filteredTasks[i]),
+        );
+      },
     ),
   );
 

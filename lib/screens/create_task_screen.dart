@@ -245,87 +245,92 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         title: const Text("Create Task", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Title
-          _label("Task Title"),
-          _inputField(_titleCtrl, "e.g. Mobile App Launch", Icons.title_rounded),
-          const SizedBox(height: 18),
-
-          // Description
-          _label("Description"),
-          _inputField(_descCtrl, "Describe the task...", Icons.description_rounded, maxLines: 3),
-          const SizedBox(height: 18),
-
-          // Priority
-          _label("Priority"),
-          _buildPrioritySelector(),
-          const SizedBox(height: 18),
-
-          // Deadline
-          _label("Deadline"),
-          GestureDetector(
-            onTap: _pickDeadline,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
-              child: Row(children: [
-                const Icon(Icons.calendar_today_rounded, color: Color(0xFF4A00E0), size: 20),
-                const SizedBox(width: 12),
-                Text(_deadline != null ? "${_deadline!.day}/${_deadline!.month}/${_deadline!.year}" : "Select deadline", style: TextStyle(color: _deadline != null ? Colors.black87 : Colors.grey)),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          // Leader
-          _label("Leader (Optional)"),
-          GestureDetector(
-            onTap: () => _showUserSearchDialog(),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
-              child: Row(children: [
-                const Icon(Icons.star_rounded, color: Color(0xFFFF9500), size: 20),
-                const SizedBox(width: 12),
-                Text(_leader != null ? "⭐ ${_leader!['full_name']}" : "Assign a leader", style: TextStyle(color: _leader != null ? Colors.black87 : Colors.grey)),
-                const Spacer(),
-                if (_leader != null) GestureDetector(
-                  onTap: () => setState(() => _leader = null),
-                  child: const Icon(Icons.close, size: 18, color: Colors.grey),
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Title
+              _label("Task Title"),
+              _inputField(_titleCtrl, "e.g. Mobile App Launch", Icons.title_rounded),
+              const SizedBox(height: 18),
+      
+              // Description
+              _label("Description"),
+              _inputField(_descCtrl, "Describe the task...", Icons.description_rounded, maxLines: 3),
+              const SizedBox(height: 18),
+      
+              // Priority
+              _label("Priority"),
+              _buildPrioritySelector(),
+              const SizedBox(height: 18),
+      
+              // Deadline
+              _label("Deadline"),
+              GestureDetector(
+                onTap: _pickDeadline,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today_rounded, color: Color(0xFF4A00E0), size: 20),
+                    const SizedBox(width: 12),
+                    Text(_deadline != null ? "${_deadline!.day}/${_deadline!.month}/${_deadline!.year}" : "Select deadline", style: TextStyle(color: _deadline != null ? Colors.black87 : Colors.grey)),
+                  ]),
                 ),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Steps
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            _label("Steps"),
-            TextButton.icon(onPressed: _addStep, icon: const Icon(Icons.add_circle_rounded, size: 20, color: Color(0xFF4A00E0)), label: const Text("Add Step", style: TextStyle(color: Color(0xFF4A00E0), fontWeight: FontWeight.bold))),
-          ]),
-          const SizedBox(height: 8),
-          ..._steps.asMap().entries.map((e) => _buildStepCard(e.key)),
-          const SizedBox(height: 30),
-
-          // Submit
-          SizedBox(
-            width: double.infinity, height: 56,
-            child: ElevatedButton(
-              onPressed: _isSubmitting ? null : _submitTask,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4A00E0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                elevation: 8,
-                shadowColor: const Color(0xFF4A00E0).withValues(alpha: 0.4),
               ),
-              child: _isSubmitting
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text("Create Task", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-            ),
+              const SizedBox(height: 18),
+      
+              // Leader
+              _label("Leader (Optional)"),
+              GestureDetector(
+                onTap: () => _showUserSearchDialog(),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+                  child: Row(children: [
+                    const Icon(Icons.star_rounded, color: Color(0xFFFF9500), size: 20),
+                    const SizedBox(width: 12),
+                    Text(_leader != null ? "⭐ ${_leader!['full_name']}" : "Assign a leader", style: TextStyle(color: _leader != null ? Colors.black87 : Colors.grey)),
+                    const Spacer(),
+                    if (_leader != null) GestureDetector(
+                      onTap: () => setState(() => _leader = null),
+                      child: const Icon(Icons.close, size: 18, color: Colors.grey),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 24),
+      
+              // Steps
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                _label("Steps"),
+                TextButton.icon(onPressed: _addStep, icon: const Icon(Icons.add_circle_rounded, size: 20, color: Color(0xFF4A00E0)), label: const Text("Add Step", style: TextStyle(color: Color(0xFF4A00E0), fontWeight: FontWeight.bold))),
+              ]),
+              const SizedBox(height: 8),
+              ..._steps.asMap().entries.map((e) => _buildStepCard(e.key)),
+              const SizedBox(height: 30),
+      
+              // Submit
+              SizedBox(
+                width: double.infinity, height: 56,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submitTask,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A00E0),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    elevation: 8,
+                    shadowColor: const Color(0xFF4A00E0).withValues(alpha: 0.4),
+                  ),
+                  child: _isSubmitting
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text("Create Task", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+            ]),
           ),
-        ]),
+        ),
       ),
     );
   }

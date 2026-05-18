@@ -309,167 +309,170 @@ class _TaskDetailScreenState extends State<TaskDetailScreen>
           ),
 
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Progress bar
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: _progress,
-                      minHeight: 8,
-                      backgroundColor: Colors.grey[200],
-                      valueColor: AlwaysStoppedAnimation(
-                        isCompleted
-                            ? const Color(0xFF34C759)
-                            : const Color(0xFF4A00E0),
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 900),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Progress bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: LinearProgressIndicator(
+                        value: _progress,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey[200],
+                        valueColor: AlwaysStoppedAnimation(
+                          isCompleted
+                              ? const Color(0xFF34C759)
+                              : const Color(0xFF4A00E0),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "${steps.where((s) => s['status'] == 'completed').length}/${steps.length} steps completed",
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "${steps.where((s) => s['status'] == 'completed').length}/${steps.length} steps completed",
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
 
-                  // Description
-                  if (_task!['description'] != null &&
-                      _task!['description'].toString().isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.description_rounded,
-                            color: Color(0xFF4A00E0),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              _task!['description'],
-                              style: TextStyle(
-                                color: Colors.grey[700],
-                                height: 1.5,
+                    // Description
+                    if (_task!['description'] != null &&
+                        _task!['description'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.description_rounded,
+                              color: Color(0xFF4A00E0),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _task!['description'],
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  height: 1.5,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
 
-                  // Deadline
-                  if (_task!['deadline'] != null) ...[
+                    // Deadline
+                    if (_task!['deadline'] != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_rounded,
+                              color: Color(0xFFFF9500),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              "Deadline: ${_formatDate(_task!['deadline'])}",
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // Members
+                    const SizedBox(height: 24),
+                    const Text(
+                      "Team Members",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                    SizedBox(
+                      height: 70,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: members.length,
+                        itemBuilder: (ctx, i) {
+                          final m = members[i];
+                          final profile = m['profiles'];
+                          final name = profile?['full_name'] ?? 'User';
+                          final role = m['role'] ?? 'member';
+                          return Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: role == 'admin'
+                                    ? const Color(
+                                        0xFF8E2DE2,
+                                      ).withValues(alpha: 0.3)
+                                    : Colors.grey.withValues(alpha: 0.1),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundImage: NetworkImage(
+                                    'https://i.pravatar.cc/150?u=${m['user_id']}',
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  name.toString().split(' ').first,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  role == 'admin'
+                                      ? '👑'
+                                      : role == 'leader'
+                                      ? '⭐'
+                                      : '👤',
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            color: Color(0xFFFF9500),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Deadline: ${_formatDate(_task!['deadline'])}",
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
+                    ),
+
+                    // TIMELINE
+                    const SizedBox(height: 24),
+                    const Text(
+                      "Workflow Timeline",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    ...steps.asMap().entries.map(
+                      (e) => _buildTimelineStep(e.value, e.key, steps.length),
                     ),
                   ],
-
-                  // Members
-                  const SizedBox(height: 24),
-                  const Text(
-                    "Team Members",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 70,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: members.length,
-                      itemBuilder: (ctx, i) {
-                        final m = members[i];
-                        final profile = m['profiles'];
-                        final name = profile?['full_name'] ?? 'User';
-                        final role = m['role'] ?? 'member';
-                        return Container(
-                          margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: role == 'admin'
-                                  ? const Color(
-                                      0xFF8E2DE2,
-                                    ).withValues(alpha: 0.3)
-                                  : Colors.grey.withValues(alpha: 0.1),
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircleAvatar(
-                                radius: 14,
-                                backgroundImage: NetworkImage(
-                                  'https://i.pravatar.cc/150?u=${m['user_id']}',
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                name.toString().split(' ').first,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                role == 'admin'
-                                    ? '👑'
-                                    : role == 'leader'
-                                    ? '⭐'
-                                    : '👤',
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  // TIMELINE
-                  const SizedBox(height: 24),
-                  const Text(
-                    "Workflow Timeline",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  ...steps.asMap().entries.map(
-                    (e) => _buildTimelineStep(e.value, e.key, steps.length),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

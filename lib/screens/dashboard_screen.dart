@@ -76,8 +76,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           Positioned(
             bottom: 20,
-            left: 20,
-            right: 20,
+            left: MediaQuery.of(context).size.width > 800 ? (MediaQuery.of(context).size.width - 600) / 2 : 20,
+            right: MediaQuery.of(context).size.width > 800 ? (MediaQuery.of(context).size.width - 600) / 2 : 20,
             child: _buildBottomNavBar(),
           ),
         ],
@@ -86,19 +86,25 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildDashboardContent() {
+    double horizontalPadding = MediaQuery.of(context).size.width > 600 ? 40 : 20;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildGreetings(),
-          const SizedBox(height: 25),
-          _buildStatsGrid(),
-          const SizedBox(height: 25),
-          _buildTaskOverview(),
-          const SizedBox(height: 25),
-          _buildUpcomingTasks(),
-        ],
+      padding: EdgeInsets.fromLTRB(horizontalPadding, 20, horizontalPadding, 100),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildGreetings(),
+              const SizedBox(height: 25),
+              _buildStatsGrid(),
+              const SizedBox(height: 25),
+              _buildTaskOverview(),
+              const SizedBox(height: 25),
+              _buildUpcomingTasks(),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -211,19 +217,24 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildStatsGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 15,
-      mainAxisSpacing: 15,
-      childAspectRatio: 1.2,
-      children: [
-        _buildStatCard("Total Tasks", "--", Icons.assignment, Colors.blue),
-        _buildStatCard("Completed", "--", Icons.check_circle, Colors.green),
-        _buildStatCard("In Progress", "--", Icons.pending, Colors.orange),
-        _buildStatCard("Overdue", "--", Icons.error, Colors.red),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 15,
+          mainAxisSpacing: 15,
+          childAspectRatio: constraints.maxWidth > 600 ? 1.5 : 1.2,
+          children: [
+            _buildStatCard("Total Tasks", "--", Icons.assignment, Colors.blue),
+            _buildStatCard("Completed", "--", Icons.check_circle, Colors.green),
+            _buildStatCard("In Progress", "--", Icons.pending, Colors.orange),
+            _buildStatCard("Overdue", "--", Icons.error, Colors.red),
+          ],
+        );
+      },
     );
   }
 

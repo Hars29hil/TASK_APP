@@ -147,22 +147,27 @@ class _ChatListScreenState extends State<ChatListScreen>
           ),
 
           SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                _buildSearchBar(),
-                _buildTabs(),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : RefreshIndicator(
-                          onRefresh: () => _fetchData(""),
-                          color: const Color(0xFF4A00E0),
-                          child: _buildChatList(),
-                        ),
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    _buildSearchBar(),
+                    _buildTabs(),
+                    Expanded(
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : RefreshIndicator(
+                              onRefresh: () => _fetchData(""),
+                              color: const Color(0xFF4A00E0),
+                              child: _buildChatList(),
+                            ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],

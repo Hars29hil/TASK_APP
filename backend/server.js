@@ -5,7 +5,8 @@ import nodemailer from "nodemailer";
 import { createClient } from '@supabase/supabase-js';
 import { sendPushNotification } from "./firebase.js";
 
-// Load environment variables from the main project folder
+// Load environment variables (try current folder first, then parent folder as fallback)
+dotenv.config();
 dotenv.config({ path: '../.env' });
 
 const app = express();
@@ -24,10 +25,12 @@ app.use(express.json());
 // ======================================
 // SUPABASE CONFIG
 // ======================================
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn("⚠️ Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables are not set.");
+}
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 // ======================================
 // TEMP OTP STORAGE
@@ -1004,3 +1007,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT} (Accessible at http://10.79.145.66:${PORT})`);
 });
+
+export default app;

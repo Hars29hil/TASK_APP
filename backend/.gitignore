@@ -1,0 +1,15 @@
+# Node.js dependencies
+node_modules/
+
+# Local environment variables
+.env
+.env*.local
+
+# Firebase sensitive credentials (should be uploaded via Vercel dashboard Env Variables instead)
+avd-3690-firebase-adminsdk-fbsvc-ef8f74fa07.json
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

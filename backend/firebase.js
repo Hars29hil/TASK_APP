@@ -1,14 +1,34 @@
 import admin from "firebase-admin";
 import { readFile } from "fs/promises";
 
-// Load service account using fs for better compatibility with ES Modules
-const serviceAccount = JSON.parse(
-  await readFile(new URL("./avd-3690-firebase-adminsdk-fbsvc-ef8f74fa07.json", import.meta.url))
-);
+// Load service account securely from environment variables if in production,
+// or fallback to the local JSON file during development.
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } catch (error) {
+    console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable:", error);
+  }
+}
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+if (!serviceAccount) {
+  try {
+    serviceAccount = JSON.parse(
+      await readFile(new URL("./avd-3690-firebase-adminsdk-fbsvc-ef8f74fa07.json", import.meta.url))
+    );
+  } catch (error) {
+    console.warn("⚠️ Warning: Local Firebase credentials file not found. Set FIREBASE_SERVICE_ACCOUNT env variable.");
+  }
+}
+
+if (serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+} else {
+  console.warn("⚠️ Warning: Firebase Admin SDK is not initialized. Push notifications will be disabled until FIREBASE_SERVICE_ACCOUNT is configured.");
+}
 
 export const sendPushNotification = async (fcmToken, title, body, data = {}) => {
   try {

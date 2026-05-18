@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'login_screen.dart';
 import 'dashboard_screen.dart';
 
@@ -20,8 +21,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   bool _isLoading = false;
 
-  // Backend URL - Use 'adb reverse tcp:5000 tcp:5000' to make this work on Android
-  final String _baseUrl = 'http://localhost:5000'; 
+  // Backend URL loaded dynamically from .env
+  String get _baseUrl {
+    final envUrl = dotenv.maybeGet('BACKEND_URL');
+    if (envUrl != null && envUrl.isNotEmpty) return envUrl;
+    return 'http://localhost:5000';
+  } 
 
   Future<void> _sendOTP() async {
     if (_emailController.text.isEmpty || _nameController.text.isEmpty || _passwordController.text.isEmpty) {

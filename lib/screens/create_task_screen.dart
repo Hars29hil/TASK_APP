@@ -40,7 +40,12 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
   // Steps list
   final List<Map<String, dynamic>> _steps = [
-    {'title': '', 'controller': TextEditingController(), 'assigned_users': <Map<String, dynamic>>[]},
+    {
+      'title': '',
+      'controller': TextEditingController(),
+      'duration_controller': TextEditingController(text: '2'),
+      'assigned_users': <Map<String, dynamic>>[]
+    },
   ];
 
   // Leader
@@ -57,13 +62,21 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _userSearchCtrl.dispose();
-    for (var s in _steps) { (s['controller'] as TextEditingController).dispose(); }
+    for (var s in _steps) {
+      (s['controller'] as TextEditingController).dispose();
+      (s['duration_controller'] as TextEditingController).dispose();
+    }
     super.dispose();
   }
 
   void _addStep() {
     setState(() {
-      _steps.add({'title': '', 'controller': TextEditingController(), 'assigned_users': <Map<String, dynamic>>[]});
+      _steps.add({
+        'title': '',
+        'controller': TextEditingController(),
+        'duration_controller': TextEditingController(text: '2'),
+        'assigned_users': <Map<String, dynamic>>[]
+      });
     });
   }
 
@@ -71,6 +84,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     if (_steps.length <= 1) return;
     setState(() {
       ((_steps[index]['controller']) as TextEditingController).dispose();
+      ((_steps[index]['duration_controller']) as TextEditingController).dispose();
       _steps.removeAt(index);
     });
   }
@@ -187,9 +201,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
       final stepsPayload = _steps.map((s) {
         final ctrl = s['controller'] as TextEditingController;
+        final durCtrl = s['duration_controller'] as TextEditingController;
         final users = s['assigned_users'] as List<Map<String, dynamic>>;
         return {
           'title': ctrl.text.trim(),
+          'duration_days': int.tryParse(durCtrl.text.trim()) ?? 2,
           'assigned_users': users.map((u) => u['id']).toList(),
         };
       }).toList();
@@ -396,6 +412,31 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
           Expanded(child: TextField(controller: ctrl, decoration: const InputDecoration(hintText: "Step title...", border: InputBorder.none, isDense: true), style: const TextStyle(fontWeight: FontWeight.w600))),
           if (_steps.length > 1) GestureDetector(onTap: () => _removeStep(index), child: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 22)),
         ]),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Icon(Icons.timer_outlined, size: 16, color: Colors.grey),
+            const SizedBox(width: 6),
+            const Text("Duration: ", style: TextStyle(fontSize: 12, color: Colors.grey)),
+            SizedBox(
+              width: 50,
+              height: 30,
+              child: TextField(
+                controller: step['duration_controller'] as TextEditingController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.zero,
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text("days", style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
         const Divider(height: 20),
         // Assigned users
         Wrap(spacing: 6, runSpacing: 6, children: [

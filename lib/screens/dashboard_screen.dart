@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'chat_list_screen.dart';
+import '../theme/app_theme.dart';
+import '../models/project.dart';
+import '../services/task_service.dart';
+import 'home_screen.dart';
 import 'task_list_screen.dart';
+import 'chat_list_screen.dart';
+import 'activity_feed_screen.dart';
 import 'create_task_screen.dart';
+import 'login_screen.dart';
 
+/// App Shell — Root screen with a floating vertical dock on the right.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -13,21 +19,29 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
-  int _selectedIndex = 1; // Default to DashBoard (Index 1)
+    with WidgetsBindingObserver {
+  int _selectedIndex = 0;
   final _supabase = Supabase.instance.client;
+  final _service = TaskService.instance;
+
+  List<Project> _projects = [];
+  bool _isLoading = true;
+  RealtimeChannel? _taskChannel;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _setUserStatus(true);
+    _fetchProjects();
+    _subscribeRealtime();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _setUserStatus(false);
+    _taskChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -45,440 +59,183 @@ class _DashboardScreenState extends State<DashboardScreen>
     final userId = _supabase.auth.currentUser?.id;
     if (userId != null) {
       try {
-        await _supabase
-            .from('profiles')
-            .update({
-              'is_online': isOnline,
-              'last_seen': DateTime.now().toIso8601String(),
-            })
-            .eq('id', userId);
-        if (mounted) debugPrint("User status updated: isOnline=$isOnline");
+        await _supabase.from('profiles').update({
+          'is_online': isOnline,
+          'last_seen': DateTime.now().toIso8601String(),
+        }).eq('id', userId);
       } catch (e) {
-        if (mounted) debugPrint("Error updating user status: $e");
+        debugPrint("Error updating user status: $e");
       }
+    }
+  }
+
+  void _subscribeRealtime() {
+    _taskChannel = _supabase
+        .channel('dashboard-updates')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'tasks',
+          callback: (_) => _fetchProjects(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'task_steps',
+          callback: (_) => _fetchProjects(),
+        )
+        .subscribe();
+  }
+
+  Future<void> _fetchProjects() async {
+    final projects = await _service.fetchProjects();
+    if (mounted) {
+      setState(() {
+        _projects = projects;
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFF),
-      appBar: _selectedIndex == 1 ? _buildAppBar() : null,
+      backgroundColor: AppColors.warmWhite,
       body: Stack(
         children: [
-          IndexedStack(
-            index: _selectedIndex,
-            children: [
-              _buildTaskCenter(), // Tasks (Index 0)
-              _buildDashboardContent(), // DashBoard (Index 1)
-              const ChatListScreen(), // Chat (Index 2)
-            ],
-          ),
-          Positioned(
-            bottom: 20,
-            left: MediaQuery.of(context).size.width > 800 ? (MediaQuery.of(context).size.width - 600) / 2 : 20,
-            right: MediaQuery.of(context).size.width > 800 ? (MediaQuery.of(context).size.width - 600) / 2 : 20,
-            child: _buildBottomNavBar(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDashboardContent() {
-    double horizontalPadding = MediaQuery.of(context).size.width > 600 ? 40 : 20;
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(horizontalPadding, 20, horizontalPadding, 100),
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildGreetings(),
-              const SizedBox(height: 25),
-              _buildStatsGrid(),
-              const SizedBox(height: 25),
-              _buildTaskOverview(),
-              const SizedBox(height: 25),
-              _buildUpcomingTasks(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTaskCenter() {
-    return const TaskListScreen();
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-            ),
-          ],
-        ),
-        child: const Icon(Icons.menu, color: Colors.black87),
-      ),
-      title: const Text(
-        "Dashboard",
-        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_none, color: Colors.black87),
-          onPressed: () {},
-        ),
-        const Padding(
-          padding: EdgeInsets.only(right: 15),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=a'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGreetings() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Good Morning! 👋",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 5),
-            Text(
-              "User ID: ${Supabase.instance.client.auth.currentUser?.id ?? 'Not Logged In'}",
-              style: TextStyle(
-                color: Colors.blueAccent,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              "Here's what's happening today.",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
-            ),
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4A00E0).withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: GestureDetector(
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTaskScreen()));
-            },
-            child: Row(
-              children: const [
-                Icon(Icons.add, color: Colors.white, size: 20),
-                SizedBox(width: 5),
-                Text(
-                  "New Task",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+          // Content
+          Positioned.fill(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                HomeScreen(
+                  projects: _projects,
+                  isLoading: _isLoading,
+                  onRefresh: _fetchProjects,
                 ),
+                const TaskListScreen(),
+                const ChatListScreen(),
+                const ActivityFeedScreen(),
               ],
             ),
           ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildStatsGrid() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        int crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossAxisCount,
-          crossAxisSpacing: 15,
-          mainAxisSpacing: 15,
-          childAspectRatio: constraints.maxWidth > 600 ? 1.5 : 1.2,
-          children: [
-            _buildStatCard("Total Tasks", "--", Icons.assignment, Colors.blue),
-            _buildStatCard("Completed", "--", Icons.check_circle, Colors.green),
-            _buildStatCard("In Progress", "--", Icons.pending, Colors.orange),
-            _buildStatCard("Overdue", "--", Icons.error, Colors.red),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+          // Floating Bottom Dock
+          Positioned(
+            left: 24,
+            right: 24,
+            bottom: 24,
+            child: _buildBottomDock(),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildBottomDock() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.ink.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: AppShadows.medium,
+      ),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const Icon(Icons.show_chart, color: Colors.grey, size: 20),
-            ],
+          _dockItem(Icons.folder_rounded, targetIndex: 1), // Spaces / Tasks
+          _dockItem(Icons.chat_bubble_rounded, targetIndex: 2), // Chat
+          _dockItem(Icons.home_rounded, targetIndex: 0), // Dashboard (Center)
+          _dockItem(Icons.notifications_rounded, targetIndex: 3), // Activity
+          _dockItem(Icons.person_rounded, targetIndex: -1, isProfile: true), // Profile
+        ],
+      ),
+    );
+  }
+
+  Widget _dockItem(IconData icon, {required int targetIndex, bool isProfile = false}) {
+    final isActive = !isProfile && _selectedIndex == targetIndex;
+
+    return GestureDetector(
+      onTap: () {
+        if (isProfile) {
+          _showProfileModal();
+        } else {
+          setState(() => _selectedIndex = targetIndex);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutBack,
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.electricBlue : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+          child: Icon(
+            icon,
+            key: ValueKey<bool>(isActive),
+            color: isActive ? Colors.white : AppColors.textTertiary,
+            size: 24,
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      ),
+    );
+  }
+
+  void _showProfileModal() {
+    // ... basic logout modal ...
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                title,
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
+                'Profile',
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.ink,
                 ),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                leading: const Icon(Icons.add_circle_rounded, color: AppColors.electricBlue),
+                title: const Text('Create New Task'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CreateTaskScreen()),
+                  ).then((_) => _fetchProjects());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout_rounded, color: AppColors.warning),
+                title: const Text('Sign Out'),
+                onTap: () async {
+                  await _supabase.auth.signOut();
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
+                },
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTaskOverview() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 20,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Tasks Overview",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Text("This Week", style: TextStyle(fontSize: 12)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 30),
-          SizedBox(
-            height: 150,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(7, (index) => _buildBar(index)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBar(int index) {
-    double heightValue = 40.0 + (index * 15.0) % 80.0;
-    return Column(
-      children: [
-        Expanded(
-          child: Container(
-            width: 15,
-            height: heightValue,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: index == 4
-                    ? [const Color(0xFF8E2DE2), const Color(0xFF4A00E0)]
-                    : [Colors.grey[200]!, Colors.grey[100]!],
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index],
-          style: const TextStyle(fontSize: 10, color: Colors.grey),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUpcomingTasks() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Upcoming Tasks",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 15),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(30),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                Icons.assignment_turned_in_outlined,
-                size: 50,
-                color: Colors.blue.withValues(alpha: 0.3),
-              ),
-              const SizedBox(height: 15),
-              const Text(
-                "No upcoming tasks",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const Text(
-                "You're all caught up!",
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    return Container(
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _navItem(0, Icons.task_alt_rounded, "Tasks"),
-                _navItem(1, Icons.dashboard_rounded, "DashBoard"),
-                _navItem(2, Icons.chat_bubble_rounded, "Chat"),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _navItem(int index, IconData icon, String label) {
-    bool isActive = _selectedIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.transparent, // Ensure hit test works
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedScale(
-              scale: isActive ? 1.2 : 1.0,
-              duration: const Duration(milliseconds: 400),
-              child: Icon(
-                icon,
-                color: isActive ? const Color(0xFF4A00E0) : Colors.grey[400],
-                size: 28,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? const Color(0xFF4A00E0) : Colors.transparent,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
         ),
       ),
     );

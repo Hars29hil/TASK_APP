@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_typography.dart';
 
@@ -23,22 +24,90 @@ class ChatComposer extends StatefulWidget {
   });
 
   @override
-  State<ChatComposer> createState() => _ChatComposerState();
+  State<ChatComposer> createState() => _ChatComposerState2();
 }
 
-class _ChatComposerState extends State<ChatComposer> {
+class _ChatComposerState2 extends State<ChatComposer> {
   final _controller = TextEditingController();
   bool _canSend = false;
+  final List<PlatformFile> _attachments = [];
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(() {
       final text = _controller.text.trim();
-      if (text.isNotEmpty != _canSend) {
-        setState(() => _canSend = text.isNotEmpty);
+      final hasContent = text.isNotEmpty || _attachments.isNotEmpty;
+      if (hasContent != _canSend) {
+        setState(() => _canSend = hasContent);
       }
     });
+  }
+
+  Future<void> _pickFiles() async {
+    try {
+      final result = await FilePicker.pickFiles(allowMultiple: true);
+      if (result != null) {
+        setState(() {
+          _attachments.addAll(result.files);
+          _canSend = _controller.text.trim().isNotEmpty || _attachments.isNotEmpty;
+        });
+      }
+    } catch (e) {
+      debugPrint("File picking failed: $e");
+    }
+    if (widget.onAttach != null) {
+      widget.onAttach!();
+    }
+  }
+
+  void _removeAttachment(int index) {
+    setState(() {
+      _attachments.removeAt(index);
+      _canSend = _controller.text.trim().isNotEmpty || _attachments.isNotEmpty;
+    });
+  }
+
+  void _showEmojiPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceWhite,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        final emojis = ['😀', '😂', '🥺', '👍', '🙏', '❤️', '🔥', '✨', '🎉', '🚀', '👀', '💯', '🙌', '💡', '✅', '❌'];
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Select Emoji", style: AppTypography.h3.copyWith(color: AppColors.ink)),
+              const SizedBox(height: 16),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 8,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                ),
+                itemCount: emojis.length,
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () {
+                      _controller.text += emojis[index];
+                      Navigator.pop(context);
+                    },
+                    child: Center(
+                      child: Text(emojis[index], style: const TextStyle(fontSize: 24)),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -49,8 +118,12 @@ class _ChatComposerState extends State<ChatComposer> {
 
   void _handleSend() {
     if (!_canSend || widget.isLoading) return;
-    widget.onSend(_controller.text.trim(), null);
+    widget.onSend(_controller.text.trim(), _attachments.isNotEmpty ? _attachments : null);
     _controller.clear();
+    setState(() {
+      _attachments.clear();
+      _canSend = false;
+    });
   }
 
   @override
@@ -105,13 +178,56 @@ class _ChatComposerState extends State<ChatComposer> {
             const SizedBox(height: 8),
           ],
 
+          // Attachments preview
+          if (_attachments.isNotEmpty) ...[
+            SizedBox(
+              height: 60,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _attachments.length,
+                itemBuilder: (context, index) {
+                  final file = _attachments[index];
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8, bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceGrey,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.insert_drive_file, size: 16, color: AppColors.textSecondary),
+                        const SizedBox(width: 6),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 100),
+                          child: Text(
+                            file.name,
+                            style: AppTypography.textXs.copyWith(color: AppColors.ink),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () => _removeAttachment(index),
+                          child: const Icon(Icons.close, size: 16, color: AppColors.textTertiary),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+
           // Input row
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               // Attach Btn
               GestureDetector(
-                onTap: widget.onAttach,
+                onTap: _pickFiles,
                 child: Container(
                   width: 36, height: 36,
                   decoration: const BoxDecoration(color: AppColors.bg, shape: BoxShape.circle),
@@ -147,7 +263,7 @@ class _ChatComposerState extends State<ChatComposer> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () { /* Emoji picker open */ },
+                        onTap: _showEmojiPicker,
                         child: Opacity(opacity: 0.6, child: const Text('😊', style: TextStyle(fontSize: 16))),
                       )
                     ],

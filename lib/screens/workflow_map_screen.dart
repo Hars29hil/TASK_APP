@@ -53,13 +53,13 @@ class _WorkflowMapScreenState extends State<WorkflowMapScreen> {
                 ? const Center(child: Text('Project not found'))
                 : Stack(
                     children: [
-                      Column(
-                        children: [
-                          _buildHeader(),
-                          Expanded(
-                            child: _buildNodeGraph(),
-                          ),
-                        ],
+                      SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _buildHeader(),
+                            _buildNodeGraph(),
+                          ],
+                        ),
                       ),
                       // Bottom sheet for active step
                       Positioned(
@@ -147,6 +147,8 @@ class _WorkflowMapScreenState extends State<WorkflowMapScreen> {
   Widget _buildNodeGraph() {
     final stages = _project!.stages;
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(40, 20, 40, 260), // Space for bottom sheet
       itemCount: stages.length,
       itemBuilder: (context, index) {

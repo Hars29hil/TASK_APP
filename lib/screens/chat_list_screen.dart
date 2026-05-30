@@ -19,6 +19,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   
   List<ChatListItem> _allChats = [];
   bool _isLoading = true;
+  bool _isDirectChat = true;
 
   @override
   void initState() {
@@ -65,9 +66,34 @@ class _ChatListScreenState extends State<ChatListScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Chats',
-                    style: AppTypography.h2.copyWith(fontFamily: 'Syne', fontWeight: FontWeight.w800, fontSize: 22),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => setState(() => _isDirectChat = true),
+                        child: Text(
+                          'Direct Chat',
+                          style: AppTypography.h2.copyWith(
+                            fontFamily: 'Syne', 
+                            fontWeight: FontWeight.w800, 
+                            fontSize: 22,
+                            color: _isDirectChat ? AppColors.ink : AppColors.textTertiary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      GestureDetector(
+                        onTap: () => setState(() => _isDirectChat = false),
+                        child: Text(
+                          'Group Chat',
+                          style: AppTypography.h2.copyWith(
+                            fontFamily: 'Syne', 
+                            fontWeight: FontWeight.w800, 
+                            fontSize: 22,
+                            color: !_isDirectChat ? AppColors.ink : AppColors.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   Row(
                     children: [
@@ -87,36 +113,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
               onChanged: _onSearchChanged,
             ),
             
-            // List
             Expanded(
               child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.electricBlue))
-                : _allChats.isEmpty
+                : (_isDirectChat ? dms.isEmpty : projects.isEmpty)
                   ? _buildEmptyState()
                   : ListView(
                       padding: const EdgeInsets.only(bottom: 100),
-                      children: [
-                        if (projects.isNotEmpty) ...[
-                          const ChatSectionLabel('PROJECTS'),
-                          ...projects.map((p) => Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: ProjectChatCard(
-                                  item: p,
-                                  onTap: () => _openProjectChat(p),
-                                ),
-                              )),
-                        ],
-                        if (dms.isNotEmpty) ...[
-                          const ChatSectionLabel('DIRECT MESSAGES'),
-                          ...dms.map((dm) => Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                      children: _isDirectChat
+                          ? dms.map((dm) => Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                                 child: DMRow(
                                   item: dm,
                                   onTap: () => _openDMChat(dm),
                                 ),
-                              )),
-                        ],
-                      ],
+                              )).toList()
+                          : projects.map((p) => Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                child: ProjectChatCard(
+                                  item: p,
+                                  onTap: () => _openProjectChat(p),
+                                ),
+                              )).toList(),
                     ),
             ),
           ],

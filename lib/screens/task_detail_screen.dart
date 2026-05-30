@@ -15,7 +15,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   final _service = TaskService.instance;
   Project? _project;
   bool _isLoading = true;
-  int _selectedTabIndex = 0;
 
   @override
   void initState() {
@@ -43,10 +42,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0F265C),
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
-      );
+      return _buildSkeleton();
     }
 
     if (_project == null) {
@@ -58,10 +54,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F265C), // Dark blue
-      body: Column(
+      body: Stack(
         children: [
-          _buildTopHeader(),
-          Expanded(child: _buildBottomCard()),
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildTopHeader(),
+                _buildBottomCard(),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 24,
+            left: 24,
+            right: 24,
+            child: _buildChatOverlay(),
+          ),
         ],
       ),
     );
@@ -114,12 +122,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           // Avatars
           Row(
             children: [
-              _buildAvatar('H', Colors.blue),
-              _buildAvatar('B', Colors.green),
-              _buildAvatar('A', Colors.purple),
-              _buildAvatar('R', Colors.orange),
-              const SizedBox(width: 12),
-              Text('+2 members', style: AppTypography.bodySmall.copyWith(color: Colors.white70)),
+              if (_project!.members.isEmpty)
+                Text('No members assigned', style: AppTypography.bodySmall.copyWith(color: Colors.white70))
+              else ...[
+                ..._project!.members.take(4).map((member) {
+                  final initial = member.name.isNotEmpty ? member.name[0].toUpperCase() : '?';
+                  final colors = [Colors.blue, Colors.green, Colors.purple, Colors.orange, Colors.teal, Colors.red, Colors.indigo];
+                  final color = colors[member.name.hashCode % colors.length];
+                  return _buildAvatar(initial, color);
+                }),
+                if (_project!.members.length > 4) ...[
+                  const SizedBox(width: 12),
+                  Text('+${_project!.members.length - 4} members', style: AppTypography.bodySmall.copyWith(color: Colors.white70)),
+                ],
+              ],
             ],
           ),
         ],
@@ -146,94 +162,136 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildBottomCard() {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: AppColors.warmWhite,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      child: Column(
+  Widget _buildSkeleton() {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F265C),
+      body: Column(
         children: [
-          // Tabs
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: Row(
-              children: [
-                _buildTab('Workflow', 0),
-                const SizedBox(width: 24),
-                _buildTab('Timeline', 1),
-                const SizedBox(width: 24),
-                _buildTab('Files', 2),
-                const SizedBox(width: 24),
-                _buildTab('Chat', 3),
-                const SizedBox(width: 24),
-                _buildTab('Members', 4),
-              ],
+          // Mock Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0F265C), Color(0xFF1E3A8A)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
             ),
-          ),
-          // Divider
-          Container(height: 1, color: AppColors.surfaceGrey),
-          // Content
-          Expanded(
-            child: Stack(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-                  itemCount: _project!.stages.length,
-                  itemBuilder: (context, index) {
-                    return _buildStageItem(_project!.stages[index]);
-                  },
-                ),
-                // Mock Chat Overlay
-                Positioned(
-                  bottom: 24,
-                  left: 24,
-                  right: 24,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: AppShadows.medium,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.textTertiary, size: 16),
-                                const SizedBox(width: 8),
-                                Text('Team Chat', style: AppTypography.labelMedium),
-                              ],
-                            ),
-                            Text('Open', style: AppTypography.labelMedium.copyWith(color: AppColors.electricBlue)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _buildAvatar('H', Colors.blue),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Pushed the design files to Figma ✅',
-                                style: AppTypography.bodySmall,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                        const Icon(Icons.arrow_back, color: Colors.white70, size: 16),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 60,
+                          height: 14,
+                          decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4)),
                         ),
                       ],
                     ),
-                  ),
+                    const Icon(Icons.horizontal_rule_rounded, color: Colors.white54),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: 200,
+                  height: 36,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 150,
+                  height: 16,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4)),
+                ),
+                const SizedBox(height: 24),
+                // Mock Avatars
+                Row(
+                  children: [
+                    for (int i = 0; i < 4; i++)
+                      Align(
+                        widthFactor: 0.75,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF0F265C), width: 2),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 80,
+                      height: 14,
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4)),
+                    ),
+                  ],
                 ),
               ],
+            ),
+          ),
+          // Mock Bottom Card
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: AppColors.warmWhite,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+              child: Column(
+                children: [
+                  for (int i = 0; i < 3; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: const BoxDecoration(color: Colors.black12, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Container(
+                                  width: double.infinity,
+                                  height: 16,
+                                  decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(4)),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  width: 120,
+                                  height: 12,
+                                  decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(4)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ],
@@ -241,23 +299,60 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildTab(String title, int index) {
-    final isActive = _selectedTabIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedTabIndex = index),
+  Widget _buildBottomCard() {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: AppColors.warmWhite,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+        child: Column(
+          children: _project!.stages.map((s) => _buildStageItem(s)).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatOverlay() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.medium,
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: AppTypography.labelMedium.copyWith(
-              color: isActive ? AppColors.electricBlue : AppColors.textSecondary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.textTertiary, size: 16),
+                  const SizedBox(width: 8),
+                  Text('Team Chat', style: AppTypography.labelMedium),
+                ],
+              ),
+              Text('Open', style: AppTypography.labelMedium.copyWith(color: AppColors.electricBlue)),
+            ],
           ),
-          const SizedBox(height: 8),
-          Container(
-            height: 2,
-            width: 40,
-            color: isActive ? AppColors.electricBlue : Colors.transparent,
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildAvatar('H', Colors.blue),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Pushed the design files to Figma ✅',
+                  style: AppTypography.bodySmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -331,10 +426,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               children: [
                 Text(stage.title, style: AppTypography.labelLarge.copyWith(fontSize: 16)),
                 const SizedBox(height: 4),
-                Text(
-                  '${stage.assignedUsers.isNotEmpty ? stage.assignedUserNames.first : 'Unassigned'} • ${isCompleted ? '3 deliverables' : isActive ? '72% done' : 'Not started'}', // Mock details
-                  style: AppTypography.bodySmall,
-                ),
+                if (isCompleted || isActive)
+                  Text(
+                    '${stage.assignedUsers.isNotEmpty ? stage.assignedUserNames.first : 'Unassigned'} • ${isCompleted ? '3 deliverables' : '72% done'}', // Mock details
+                    style: AppTypography.bodySmall,
+                  )
+                else
+                  GestureDetector(
+                    onTap: () async {
+                      await _service.completeStep(_project!.id, stage.id);
+                      _loadProject();
+                    },
+                    child: Text(
+                      'Complete task',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.electricBlue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

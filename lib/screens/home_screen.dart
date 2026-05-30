@@ -50,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: AppColors.electricBlue,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 24, 80, 100), // Right padding for dock
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

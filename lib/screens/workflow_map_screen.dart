@@ -45,7 +45,7 @@ class _WorkflowMapScreenState extends State<WorkflowMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.warmWhite,
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: AppColors.electricBlue))

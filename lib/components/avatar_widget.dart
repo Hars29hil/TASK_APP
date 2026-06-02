@@ -86,7 +86,7 @@ class AvatarWidget extends StatelessWidget {
                 color: isOnline ? AppColors.emerald : AppColors.surfaceGrey,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.warmWhite,
+                  color: AppColors.bg,
                   width: size * 0.05,
                 ),
               ),
@@ -128,7 +128,7 @@ class AvatarStack extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.warmWhite, width: 2),
+                  border: Border.all(color: AppColors.bg, width: 2),
                 ),
                 child: AvatarWidget(
                   name: names[i],
@@ -146,7 +146,7 @@ class AvatarStack extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.surfaceGrey,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.warmWhite, width: 2),
+                  border: Border.all(color: AppColors.bg, width: 2),
                 ),
                 child: Center(
                   child: Text(

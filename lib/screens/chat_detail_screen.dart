@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import '../services/chat_service.dart';
 import '../components/chat/chat_top_bar.dart';
 import '../components/chat/chat_message_components.dart';
 import '../components/chat/chat_composer.dart';
@@ -29,46 +31,52 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   List<Message> _messages = [];
   bool _isLoading = true;
+  RealtimeChannel? _subscription;
+  String _currentUserId = '';
 
   @override
   void initState() {
     super.initState();
-    _loadMockMessages();
+    _currentUserId = ChatService.instance.currentUserId;
+    _loadMessages();
   }
 
-  void _loadMockMessages() {
-    // Wait for real API, mocking for now to test UI
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      setState(() {
-        _messages = [
-          Message(
-            id: 'm1',
-            authorId: 'u1',
-            text: 'Frontend Phase unlocked by Bhulku',
-            type: 'system',
-            createdAt: DateTime.now().subtract(const Duration(days: 1)),
-          ),
-          Message(
-            id: 'm2',
-            authorId: 'u2',
-            text: 'I just pushed the new designs to Figma!',
-            type: 'text',
-            createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-          ),
-          Message(
-            id: 'm3',
-            authorId: 'me',
-            text: 'Looks great! I will start implementing it now.',
-            type: 'text',
-            createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-            isRead: true,
-          ),
-        ];
-        _isLoading = false;
-      });
-      _scrollToBottom();
+  void _loadMessages() async {
+    final isProject = widget.roomType == 'project';
+    
+    // Fetch historical messages
+    final msgs = await ChatService.instance.fetchMessages(widget.roomId, isProject);
+    if (!mounted) return;
+    
+    setState(() {
+      _messages = msgs;
+      _isLoading = false;
     });
+    _scrollToBottom();
+
+    // Subscribe to new messages
+    _subscription = ChatService.instance.subscribeToMessages(
+      widget.roomId, 
+      isProject, 
+      (Message newMsg) {
+        if (!mounted) return;
+        
+        // Prevent exact duplicates just in case
+        if (_messages.any((m) => m.id == newMsg.id)) return;
+        
+        setState(() {
+          _messages.add(newMsg);
+        });
+        _scrollToBottom();
+      }
+    );
+  }
+
+  @override
+  void dispose() {
+    _subscription?.unsubscribe();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _scrollToBottom() {
@@ -83,19 +91,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  void _sendMessage(String text, List<dynamic>? attachments) {
-    setState(() {
-      _messages.add(
-        Message(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          authorId: 'me', // mock current user
-          text: text,
-          type: 'text',
-          createdAt: DateTime.now(),
-        ),
-      );
-    });
-    _scrollToBottom();
+  void _sendMessage(String text, List<dynamic>? attachments) async {
+    final isProject = widget.roomType == 'project';
+    
+    final realMsg = await ChatService.instance.sendMessage(widget.roomId, isProject, text);
+    if (realMsg != null && mounted) {
+      // Add the real message from DB to the UI instantly.
+      // The realtime subscription will ignore it because the ID matches.
+      setState(() {
+        _messages.add(realMsg);
+      });
+      _scrollToBottom();
+    }
   }
 
   void _openTaskThread() {
@@ -154,9 +161,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
-                      final isMine = msg.authorId == 'me';
+                      final isMine = msg.authorId == _currentUserId;
                       
-                      // Mock user mapping
+                      // Mock user mapping (in real app, fetch user profiles from DB)
                       final user = User(
                         id: msg.authorId,
                         name: isMine ? 'Me' : 'Alice',

@@ -159,156 +159,163 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F265C), Color(0xFF1E3A8A)],
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const SizedBox(height: 80),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Create Account",
-                    style: AppTypography.h1.copyWith(color: Colors.white, fontSize: 36),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Welcome! Please fill the form to register",
-                    style: AppTypography.bodyMedium.copyWith(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
               child: Container(
-                decoration: const BoxDecoration(
-                  color: AppColors.warmWhite,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(32),
-                    topRight: Radius.circular(32),
-                  ),
+                constraints: const BoxConstraints(maxWidth: 400),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: AppShadows.soft,
                 ),
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 500),
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.all(30),
-                        child: Column(
-                          children: <Widget>[
-                            const SizedBox(height: 60),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: AppShadows.soft,
-                              ),
-                              child: Column(
-                                children: <Widget>[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      border: Border(bottom: BorderSide(color: AppColors.surfaceGrey)),
-                                    ),
-                                    child: TextField(
-                                      controller: _nameController,
-                                      style: AppTypography.bodyMedium,
-                                      decoration: InputDecoration(
-                                        hintText: "Full Name",
-                                        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
-                                        border: InputBorder.none,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      border: Border(bottom: BorderSide(color: AppColors.surfaceGrey)),
-                                    ),
-                                    child: TextField(
-                                      controller: _emailController,
-                                      style: AppTypography.bodyMedium,
-                                      decoration: InputDecoration(
-                                        hintText: "Email",
-                                        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
-                                        border: InputBorder.none,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                    child: TextField(
-                                      controller: _passwordController,
-                                      obscureText: true,
-                                      style: AppTypography.bodyMedium,
-                                      decoration: InputDecoration(
-                                        hintText: "Password",
-                                        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
-                                        border: InputBorder.none,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 40),
-                            _isLoading
-                                ? const CircularProgressIndicator(color: AppColors.electricBlue)
-                                : MaterialButton(
-                                    onPressed: _sendOTP,
-                                    height: 50,
-                                    minWidth: double.infinity,
-                                    color: AppColors.electricBlue,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    elevation: 0,
-                                    child: Text(
-                                      "Register",
-                                      style: AppTypography.button.copyWith(color: Colors.white),
-                                    ),
-                                  ),
-                            const SizedBox(height: 30),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text("Already have an account? ", style: AppTypography.bodyMedium),
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const LoginScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: Text(
-                                    "Login",
-                                    style: AppTypography.labelLarge.copyWith(color: AppColors.electricBlue),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Create Account",
+                      style: AppTypography.h1,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Welcome! Please fill the form to register.",
+                      style: AppTypography.bodyMedium,
+                    ),
+                    const SizedBox(height: 32),
+                    // Name Field
+                    Text("Full Name", style: AppTypography.labelMedium),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _nameController,
+                      style: AppTypography.bodyMedium,
+                      decoration: InputDecoration(
+                        hintText: "Jane Doe",
+                        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
+                        filled: true,
+                        fillColor: AppColors.bg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.electricBlue),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                    // Email Field
+                    Text("Email", style: AppTypography.labelMedium),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _emailController,
+                      style: AppTypography.bodyMedium,
+                      decoration: InputDecoration(
+                        hintText: "you@example.com",
+                        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
+                        filled: true,
+                        fillColor: AppColors.bg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.electricBlue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Password Field
+                    Text("Password", style: AppTypography.labelMedium),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      style: AppTypography.bodyMedium,
+                      decoration: InputDecoration(
+                        hintText: "••••••••",
+                        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
+                        filled: true,
+                        fillColor: AppColors.bg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.electricBlue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    // Register Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator(color: AppColors.electricBlue))
+                          : ElevatedButton(
+                              onPressed: _sendOTP,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.electricBlue,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                "Register",
+                                style: AppTypography.button.copyWith(color: Colors.white),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 32),
+                    // Login Link
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text("Already have an account? ", style: AppTypography.bodyMedium),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const LoginScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            "Login",
+                            style: AppTypography.labelLarge.copyWith(color: AppColors.electricBlue),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

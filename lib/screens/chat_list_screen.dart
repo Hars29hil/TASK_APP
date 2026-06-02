@@ -19,7 +19,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
   
   List<ChatListItem> _allChats = [];
   bool _isLoading = true;
-  bool _isDirectChat = true;
 
   @override
   void initState() {
@@ -45,7 +44,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   void _onSearchChanged(String query) {
-    // Simple debounce could go here
     _fetchChats(query);
   }
 
@@ -54,108 +52,91 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final projects = _allChats.where((c) => c.type == 'project').toList();
     final dms = _allChats.where((c) => c.type == 'dm').toList();
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        appBar: AppBar(
+          backgroundColor: AppColors.bg,
+          elevation: 0,
+          title: Text('Messages', style: AppTypography.h2),
+          centerTitle: false,
+          actions: [
+            _buildHeaderIcon(Icons.edit_square, hasBadge: true),
+            const SizedBox(width: 20),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(110),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: ChatSearchBar(
+                    placeholder: 'Search messages...',
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                  ),
+                ),
+                TabBar(
+                  labelColor: AppColors.electricBlue,
+                  unselectedLabelColor: AppColors.textTertiary,
+                  indicatorColor: AppColors.electricBlue,
+                  labelStyle: AppTypography.labelLarge,
+                  unselectedLabelStyle: AppTypography.labelLarge,
+                  dividerColor: AppColors.border,
+                  tabs: const [
+                    Tab(text: 'Direct Messages'),
+                    Tab(text: 'Group Chats'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.electricBlue))
+            : TabBarView(
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => setState(() => _isDirectChat = true),
-                        child: Text(
-                          'Direct Chat',
-                          style: AppTypography.h2.copyWith(
-                            fontFamily: 'Syne', 
-                            fontWeight: FontWeight.w800, 
-                            fontSize: 22,
-                            color: _isDirectChat ? AppColors.ink : AppColors.textTertiary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      GestureDetector(
-                        onTap: () => setState(() => _isDirectChat = false),
-                        child: Text(
-                          'Group Chat',
-                          style: AppTypography.h2.copyWith(
-                            fontFamily: 'Syne', 
-                            fontWeight: FontWeight.w800, 
-                            fontSize: 22,
-                            color: !_isDirectChat ? AppColors.ink : AppColors.textTertiary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      _buildHeaderIcon(Icons.search_rounded),
-                      const SizedBox(width: 12),
-                      _buildHeaderIcon(Icons.edit_square, hasBadge: true),
-                    ],
-                  ),
+                  _buildList(dms, true),
+                  _buildList(projects, false),
                 ],
               ),
-            ),
-            
-            // Search Bar
-            ChatSearchBar(
-              placeholder: 'Search projects or people...',
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-            ),
-            
-            Expanded(
-              child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.electricBlue))
-                : (_isDirectChat ? dms.isEmpty : projects.isEmpty)
-                  ? _buildEmptyState()
-                  : ListView(
-                      padding: const EdgeInsets.only(bottom: 100),
-                      children: _isDirectChat
-                          ? dms.map((dm) => Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                child: DMRow(
-                                  item: dm,
-                                  onTap: () => _openDMChat(dm),
-                                ),
-                              )).toList()
-                          : projects.map((p) => Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                child: ProjectChatCard(
-                                  item: p,
-                                  onTap: () => _openProjectChat(p),
-                                ),
-                              )).toList(),
-                    ),
-            ),
-          ],
-        ),
       ),
+    );
+  }
+
+  Widget _buildList(List<ChatListItem> items, bool isDm) {
+    if (items.isEmpty) {
+      return _buildEmptyState();
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 100, top: 8),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: isDm
+              ? DMRow(item: item, onTap: () => _openDMChat(item))
+              : ProjectChatCard(item: item, onTap: () => _openProjectChat(item)),
+        );
+      },
     );
   }
 
   Widget _buildHeaderIcon(IconData icon, {bool hasBadge = false}) {
     return Container(
-      width: 32,
-      height: 32,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        boxShadow: AppShadows.soft,
+        border: Border.all(color: AppColors.border),
       ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Center(child: Icon(icon, size: 16, color: AppColors.ink)),
+          Center(child: Icon(icon, size: 18, color: AppColors.ink)),
           if (hasBadge)
             Positioned(
               top: -2,
@@ -166,7 +147,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.electricBlue,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.bg, width: 2),
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
               ),
             ),

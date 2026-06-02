@@ -8,7 +8,6 @@ import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import '../components/avatar_widget.dart';
 import '../components/badge_chip.dart';
-import '../components/progress_bar.dart';
 import '../components/filter_chip_widget.dart';
 import '../models/project.dart';
 import 'create_task_screen.dart';
@@ -113,7 +112,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.warmWhite,
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -282,11 +281,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: project.isCompleted
-                ? AppColors.emerald.withValues(alpha: 0.2)
-                : AppColors.surfaceGrey,
+                ? AppColors.emerald.withValues(alpha: 0.3)
+                : AppColors.border,
           ),
           boxShadow: AppShadows.soft,
         ),
@@ -300,7 +299,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   child: Text(
                     project.title,
                     style: AppTypography.labelLarge.copyWith(
-                      fontSize: 15,
+                      fontSize: 16,
                       decoration: project.isCompleted
                           ? TextDecoration.lineThrough
                           : null,
@@ -316,23 +315,24 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 PriorityChip(priority: project.priority),
               ],
             ),
-            // Role badge
             if (project.myRole == 'admin' || project.myRole == 'leader') ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               RoleBadge(role: project.myRole!),
             ],
-            const SizedBox(height: 12),
-            // Progress bar
-            GradientProgressBar(
-              progress: project.progress,
-              startColor: project.isCompleted
-                  ? AppColors.emerald
-                  : null,
-              endColor: project.isCompleted
-                  ? AppColors.emerald.withValues(alpha: 0.6)
-                  : null,
+            const SizedBox(height: 16),
+            // Standard Linear Progress Bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: project.progress,
+                minHeight: 8,
+                backgroundColor: AppColors.surfaceGrey,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  project.isCompleted ? AppColors.emerald : AppColors.electricBlue,
+                ),
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             // Bottom row: current step + step count
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -344,18 +344,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         project.isCompleted
                             ? Icons.check_circle_rounded
                             : Icons.play_circle_fill_rounded,
-                        size: 14,
+                        size: 16,
                         color: project.isCompleted
                             ? AppColors.emerald
                             : AppColors.electricBlue,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           project.currentStepLabel,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                          style: AppTypography.bodySmall,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -370,14 +368,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         project.members.take(3).map((m) => m.avatarUrl).toList(),
                     names:
                         project.members.take(3).map((m) => m.name).toList(),
-                    size: 20,
+                    size: 24,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                 ],
                 Text(
                   '${project.completedStageCount}/${project.stages.length}',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textTertiary,
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],

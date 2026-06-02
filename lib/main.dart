@@ -137,7 +137,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Anand Swami App',
+      title: 'Task App',
       theme: buildLightTheme(),
       home: session != null ? const DashboardScreen() : const RegistrationScreen(),
     );

@@ -152,7 +152,7 @@ class _ChatComposerState2 extends State<ChatComposer> {
                         children: [
                           const Text('✅', style: TextStyle(fontSize: 12)),
                           const SizedBox(width: 6),
-                          Text('Mark Stage Done', style: AppTypography.textXs.copyWith(fontFamily: 'Syne', fontWeight: FontWeight.w700, color: AppColors.emerald)),
+                          Text('Mark Stage Done', style: AppTypography.textXs.copyWith(fontWeight: FontWeight.w700, color: AppColors.emerald)),
                         ],
                       ),
                     ),
@@ -168,7 +168,7 @@ class _ChatComposerState2 extends State<ChatComposer> {
                       children: [
                         const Text('🚩', style: TextStyle(fontSize: 12)),
                         const SizedBox(width: 6),
-                        Text('Block', style: AppTypography.textXs.copyWith(fontFamily: 'Syne', fontWeight: FontWeight.w700, color: AppColors.warning)),
+                        Text('Block', style: AppTypography.textXs.copyWith(fontWeight: FontWeight.w700, color: AppColors.warning)),
                       ],
                     ),
                   ),

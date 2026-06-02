@@ -70,7 +70,7 @@ class ChatTopbar extends StatelessWidget {
                 Text(
                   title,
                   style: AppTypography.textMd.copyWith(
-                    fontFamily: 'Syne',
+                    
                     fontWeight: FontWeight.w800,
                     color: AppColors.ink,
                   ),
@@ -177,7 +177,7 @@ class _StageBannerState extends State<StageBanner> with SingleTickerProviderStat
                 Text(
                   'ACTIVE STAGE',
                   style: AppTypography.textXs.copyWith(
-                    fontFamily: 'Syne',
+                    
                     fontWeight: FontWeight.w700,
                     color: Colors.white.withValues(alpha: 0.65),
                     letterSpacing: 1.5,
@@ -186,7 +186,7 @@ class _StageBannerState extends State<StageBanner> with SingleTickerProviderStat
                 Text(
                   widget.stage.title,
                   style: AppTypography.textSm.copyWith(
-                    fontFamily: 'Syne',
+                    
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
@@ -206,7 +206,7 @@ class _StageBannerState extends State<StageBanner> with SingleTickerProviderStat
               child: Text(
                 'Open →',
                 style: AppTypography.textXs.copyWith(
-                  fontFamily: 'Syne',
+                  
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),

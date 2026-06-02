@@ -4,7 +4,7 @@ import '../theme/app_typography.dart';
 import '../models/project.dart';
 
 import '../services/task_service.dart';
-import 'workflow_map_screen.dart';
+import 'task_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Project> projects;
@@ -40,10 +40,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  int get _activeProjectsCount => widget.projects.where((p) => !p.isCompleted).length;
+  int get _completedProjectsCount => widget.projects.where((p) => p.isCompleted).length;
+
+  List<Project> get _recentProjects {
+    final active = widget.projects.where((p) => !p.isCompleted).toList();
+    // Assuming we want the first 3
+    return active.take(3).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.warmWhite,
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => widget.onRefresh(),
@@ -56,17 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildHeader(),
                 const SizedBox(height: 32),
-                _buildYourTurnCard(),
-                const SizedBox(height: 40),
+                _buildStatsRow(),
+                const SizedBox(height: 32),
                 Text(
-                  'WORKFLOW RADAR',
-                  style: AppTypography.labelMedium.copyWith(
-                    letterSpacing: 1.2,
-                    color: AppColors.ink,
-                  ),
+                  'Recent Active Tasks',
+                  style: AppTypography.h3,
                 ),
                 const SizedBox(height: 16),
-                _buildWorkflowRadar(),
+                _buildRecentTasks(),
               ],
             ),
           ),
@@ -99,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: AppColors.highlight,
+            color: AppColors.electricBlue,
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -117,241 +123,151 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildYourTurnCard() {
-    final service = TaskService.instance;
-    final currentStage = service.getMyCurrentTask(widget.projects);
-    final currentProject = service.getMyCurrentProject(widget.projects);
+  Widget _buildStatsRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            title: 'Active Tasks',
+            count: _activeProjectsCount.toString(),
+            icon: Icons.play_circle_outline_rounded,
+            color: AppColors.electricBlue,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            title: 'Completed',
+            count: _completedProjectsCount.toString(),
+            icon: Icons.check_circle_outline_rounded,
+            color: AppColors.emerald,
+          ),
+        ),
+      ],
+    );
+  }
 
-    if (currentStage == null || currentProject == null) {
+  Widget _buildStatCard({
+    required String title,
+    required String count,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppShadows.soft,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 12),
+          Text(
+            count,
+            style: AppTypography.h2.copyWith(fontSize: 28),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: AppTypography.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentTasks() {
+    if (widget.isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.electricBlue));
+    }
+    
+    if (_recentProjects.isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppColors.ink,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: AppShadows.soft,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
           children: [
-            const Icon(Icons.check_circle_rounded, color: AppColors.emerald, size: 48),
+            Icon(Icons.done_all_rounded, color: AppColors.emerald, size: 48),
             const SizedBox(height: 16),
-            Text('All caught up!', style: AppTypography.h3.copyWith(color: Colors.white)),
+            Text('All caught up!', style: AppTypography.h3),
+            const SizedBox(height: 8),
+            Text('No active tasks at the moment.', style: AppTypography.bodySmall),
           ],
         ),
       );
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.ink,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: AppShadows.medium,
-        gradient: LinearGradient(
-          colors: [AppColors.ink, const Color(0xFF1A1A1A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return Column(
+      children: _recentProjects.map((project) => _buildSimpleTaskCard(project)).toList(),
+    );
+  }
+
+  Widget _buildSimpleTaskCard(Project project) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => TaskDetailScreen(taskId: project.id)),
+        ).then((_) => widget.onRefresh());
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: AppShadows.soft,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.blueDim,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Icon(Icons.folder_outlined, color: AppColors.electricBlue),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    project.title,
+                    style: AppTypography.labelLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Step ${project.completedStageCount}/${project.stages.length} • ${project.currentStepLabel}',
+                    style: AppTypography.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+          ],
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.electricBlue,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.circle, color: Colors.white, size: 8),
-                const SizedBox(width: 6),
-                Text(
-                  'YOUR TURN NOW',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: Colors.white,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            currentStage.title,
-            style: AppTypography.h1.copyWith(color: Colors.white, fontSize: 28),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${currentProject.title} • Step ${currentStage.stepNumber}',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              if (currentStage.deadline != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.warning),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.timer_outlined, color: AppColors.warning, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        _formatDeadline(currentStage.deadline!),
-                        style: AppTypography.labelMedium.copyWith(color: AppColors.warning),
-                      ),
-                    ],
-                  ),
-                ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => WorkflowMapScreen(taskId: currentProject.id)),
-                  ).then((_) => widget.onRefresh());
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.electricBlue,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    children: [
-                      Text('Open Task', style: AppTypography.button.copyWith(color: Colors.white)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
-  }
-
-  Widget _buildWorkflowRadar() {
-    // Collect all stages across projects
-    List<Map<String, dynamic>> radarItems = [];
-    for (final p in widget.projects) {
-      for (final s in p.stages) {
-        radarItems.add({'project': p, 'stage': s});
-      }
-    }
-    
-    // Take first 5 items to mimic the UI screenshot
-    radarItems = radarItems.take(5).toList();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        children: radarItems.map((item) {
-          final p = item['project'] as Project;
-          final s = item['stage'] as Stage;
-          return _buildRadarItem(s, p);
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildRadarItem(Stage stage, Project project) {
-    IconData iconData;
-    Color iconBgColor;
-    Color iconColor = Colors.white;
-
-    if (stage.status == 'completed') {
-      iconData = Icons.check_rounded;
-      iconBgColor = AppColors.emerald.withValues(alpha: 0.15);
-      iconColor = AppColors.emerald;
-    } else if (stage.status == 'in_progress' || stage.status == 'extended') {
-      iconData = Icons.play_arrow_rounded;
-      iconBgColor = AppColors.electricBlue;
-    } else {
-      iconData = Icons.circle; // Just a placeholder, we use text
-      iconBgColor = AppColors.surfaceGrey;
-      iconColor = AppColors.textSecondary;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // Left Icon
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: stage.status == 'pending' || stage.status == 'blocked'
-                  ? Text('${stage.stepNumber}', style: TextStyle(color: iconColor, fontWeight: FontWeight.bold))
-                  : Icon(iconData, color: iconColor, size: 20),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Titles
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(stage.title, style: AppTypography.labelLarge.copyWith(fontSize: 15)),
-                const SizedBox(height: 2),
-                Text(
-                  '${stage.assignedUserNames.join(', ')} • ${_formatStatus(stage.status)}',
-                  style: AppTypography.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          // Status pill on the right
-          _buildRightPill(stage),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRightPill(Stage stage) {
-    if (stage.status == 'completed') {
-      return Text('Done', style: AppTypography.labelMedium.copyWith(color: AppColors.emerald));
-    }
-    if (stage.status == 'in_progress') {
-      return Text('Active', style: AppTypography.labelMedium.copyWith(color: AppColors.electricBlue));
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceGrey,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text('Queue', style: AppTypography.labelSmall),
-    );
-  }
-
-  String _formatStatus(String s) {
-    if (s == 'in_progress') return 'In review';
-    return s[0].toUpperCase() + s.substring(1);
   }
 
   String _formatCurrentDate() {
@@ -359,12 +275,5 @@ class _HomeScreenState extends State<HomeScreen> {
     final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
-  }
-
-  String _formatDeadline(DateTime deadline) {
-    final diff = deadline.difference(DateTime.now());
-    if (diff.isNegative) return 'Overdue';
-    if (diff.inHours < 24) return 'Due in ${diff.inHours} Hours';
-    return 'Due in ${diff.inDays} Days';
   }
 }

@@ -127,7 +127,7 @@ class ProjectChatCard extends StatelessWidget {
                     children: [
                       Text(
                         item.name,
-                        style: AppTypography.h3.copyWith(fontSize: 14, fontFamily: 'Syne', fontWeight: FontWeight.w800, color: AppColors.ink),
+                        style: AppTypography.h3.copyWith(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.ink),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -142,7 +142,7 @@ class ProjectChatCard extends StatelessWidget {
                           child: Text(
                             '$badgeIcon ${item.currentStage}'.toUpperCase(),
                             style: AppTypography.textXs.copyWith(
-                              fontFamily: 'Syne',
+                              
                               fontWeight: FontWeight.w700,
                               color: badgeText,
                               fontSize: 9,
@@ -173,7 +173,7 @@ class ProjectChatCard extends StatelessWidget {
                           child: Text(
                             item.unreadCount.toString(),
                             style: AppTypography.textXs.copyWith(
-                              fontFamily: 'Syne',
+                              
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                               fontSize: 9,
@@ -291,7 +291,7 @@ class DMRow extends StatelessWidget {
                   child: Text(
                     item.name.isNotEmpty ? item.name[0].toUpperCase() : '?',
                     style: AppTypography.textSm.copyWith(
-                      fontFamily: 'Syne',
+                      
                       fontWeight: FontWeight.w700,
                       color: AppColors.electricBlue,
                     ),
@@ -322,7 +322,7 @@ class DMRow extends StatelessWidget {
                   Text(
                     item.name,
                     style: AppTypography.textSm.copyWith(
-                      fontFamily: 'Syne',
+                      
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
                     ),
@@ -384,7 +384,7 @@ class ChatSectionLabel extends StatelessWidget {
       child: Text(
         label,
         style: AppTypography.textXs.copyWith(
-          fontFamily: 'Syne',
+          
           fontWeight: FontWeight.w700,
           color: AppColors.textTertiary,
           letterSpacing: 2.0,

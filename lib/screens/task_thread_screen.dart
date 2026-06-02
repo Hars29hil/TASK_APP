@@ -192,7 +192,7 @@ class _TaskThreadScreenState extends State<TaskThreadScreen> {
           Text(
             'CURRENT STAGE',
             style: AppTypography.textXs.copyWith(
-              fontFamily: 'Syne',
+              
               fontWeight: FontWeight.w700,
               color: AppColors.electricBlue,
               letterSpacing: 2,
@@ -202,7 +202,7 @@ class _TaskThreadScreenState extends State<TaskThreadScreen> {
           Text(
             widget.stageName,
             style: AppTypography.textMd.copyWith(
-              fontFamily: 'Syne',
+              
               fontWeight: FontWeight.w800,
               color: AppColors.ink,
             ),
@@ -243,7 +243,7 @@ class _TaskThreadScreenState extends State<TaskThreadScreen> {
               Text(
                 '72%',
                 style: AppTypography.textXs.copyWith(
-                  fontFamily: 'Syne',
+                  
                   fontWeight: FontWeight.w700,
                   color: AppColors.electricBlue,
                 ),
@@ -302,7 +302,7 @@ class _TaskThreadScreenState extends State<TaskThreadScreen> {
             title,
             textAlign: TextAlign.center,
             style: AppTypography.textXs.copyWith(
-              fontFamily: 'Syne',
+              
               fontWeight: FontWeight.w700,
               color: isActive ? Colors.white : AppColors.textTertiary,
             ),

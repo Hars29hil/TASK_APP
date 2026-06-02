@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import '../models/project.dart';
 import '../services/task_service.dart';
+import 'chat_detail_screen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final String taskId;
@@ -47,13 +48,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     if (_project == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFF0F265C),
-        body: Center(child: Text('Not found', style: TextStyle(color: Colors.white))),
+        backgroundColor: AppColors.bg,
+        body: Center(child: Text('Not found', style: TextStyle(color: AppColors.ink))),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F265C), // Dark blue
+      backgroundColor: AppColors.bg,
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -64,12 +65,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ],
             ),
           ),
-          Positioned(
-            bottom: 24,
-            left: 24,
-            right: 24,
-            child: _buildChatOverlay(),
-          ),
         ],
       ),
     );
@@ -79,13 +74,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F265C), Color(0xFF1E3A8A)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
+      color: AppColors.bg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -97,13 +86,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 onTap: () => Navigator.pop(context),
                 child: Row(
                   children: [
-                    const Icon(Icons.arrow_back, color: Colors.white70, size: 16),
+                    const Icon(Icons.arrow_back, color: AppColors.textSecondary, size: 20),
                     const SizedBox(width: 8),
-                    Text('Spaces', style: AppTypography.bodyMedium.copyWith(color: Colors.white70)),
+                    Text('Spaces', style: AppTypography.labelLarge.copyWith(color: AppColors.textSecondary)),
                   ],
                 ),
               ),
-              const Icon(Icons.horizontal_rule_rounded, color: Colors.white54), // Close/minimize icon
+              const Icon(Icons.more_horiz, color: AppColors.textSecondary),
             ],
           ),
           const SizedBox(height: 32),
@@ -111,19 +100,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           const SizedBox(height: 16),
           Text(
             _project!.title,
-            style: AppTypography.h1.copyWith(color: Colors.white, fontSize: 36),
+            style: AppTypography.h1,
           ),
           const SizedBox(height: 8),
           Text(
             'Mobile App • ${_project!.stages.length} stages • Due Jun 15', // Hardcoded subtitle match
-            style: AppTypography.bodyMedium.copyWith(color: Colors.white70),
+            style: AppTypography.bodyMedium,
           ),
           const SizedBox(height: 24),
           // Avatars
           Row(
             children: [
               if (_project!.members.isEmpty)
-                Text('No members assigned', style: AppTypography.bodySmall.copyWith(color: Colors.white70))
+                Text('No members assigned', style: AppTypography.bodySmall)
               else ...[
                 ..._project!.members.take(4).map((member) {
                   final initial = member.name.isNotEmpty ? member.name[0].toUpperCase() : '?';
@@ -133,11 +122,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 }),
                 if (_project!.members.length > 4) ...[
                   const SizedBox(width: 12),
-                  Text('+${_project!.members.length - 4} members', style: AppTypography.bodySmall.copyWith(color: Colors.white70)),
+                  Text('+${_project!.members.length - 4} members', style: AppTypography.bodySmall),
                 ],
               ],
             ],
           ),
+          const SizedBox(height: 24),
+          _buildChatOverlay(),
         ],
       ),
     );
@@ -153,7 +144,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFF0F265C), width: 2),
+          border: Border.all(color: AppColors.bg, width: 2),
         ),
         child: Center(
           child: Text(letter, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
@@ -164,20 +155,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildSkeleton() {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F265C),
+      backgroundColor: AppColors.bg,
       body: Column(
         children: [
           // Mock Header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0F265C), Color(0xFF1E3A8A)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
+            color: AppColors.bg,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -186,35 +171,35 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.arrow_back, color: Colors.white70, size: 16),
+                        const Icon(Icons.arrow_back, color: AppColors.surfaceGrey, size: 20),
                         const SizedBox(width: 8),
                         Container(
                           width: 60,
                           height: 14,
-                          decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4)),
+                          decoration: BoxDecoration(color: AppColors.surfaceGrey, borderRadius: BorderRadius.circular(4)),
                         ),
                       ],
                     ),
-                    const Icon(Icons.horizontal_rule_rounded, color: Colors.white54),
+                    const Icon(Icons.more_horiz, color: AppColors.surfaceGrey),
                   ],
                 ),
                 const SizedBox(height: 32),
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(color: AppColors.surfaceGrey, shape: BoxShape.circle),
                 ),
                 const SizedBox(height: 16),
                 Container(
                   width: 200,
                   height: 36,
-                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: AppColors.surfaceGrey, borderRadius: BorderRadius.circular(8)),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   width: 150,
                   height: 16,
-                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4)),
+                  decoration: BoxDecoration(color: AppColors.surfaceGrey, borderRadius: BorderRadius.circular(4)),
                 ),
                 const SizedBox(height: 24),
                 // Mock Avatars
@@ -228,9 +213,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: Colors.white24,
+                            color: AppColors.surfaceGrey,
                             shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFF0F265C), width: 2),
+                            border: Border.all(color: AppColors.bg, width: 2),
                           ),
                         ),
                       ),
@@ -238,7 +223,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     Container(
                       width: 80,
                       height: 14,
-                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4)),
+                      decoration: BoxDecoration(color: AppColors.surfaceGrey, borderRadius: BorderRadius.circular(4)),
                     ),
                   ],
                 ),
@@ -250,8 +235,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             child: Container(
               width: double.infinity,
               decoration: const BoxDecoration(
-                color: AppColors.warmWhite,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                color: AppColors.bg,
               ),
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
               child: Column(
@@ -265,7 +249,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           Container(
                             width: 48,
                             height: 48,
-                            decoration: const BoxDecoration(color: Colors.black12, shape: BoxShape.circle),
+                            decoration: const BoxDecoration(color: AppColors.surfaceGrey, borderRadius: BorderRadius.all(Radius.circular(16))),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -276,13 +260,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                 Container(
                                   width: double.infinity,
                                   height: 16,
-                                  decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(4)),
+                                  decoration: BoxDecoration(color: AppColors.surfaceGrey, borderRadius: BorderRadius.circular(4)),
                                 ),
                                 const SizedBox(height: 8),
                                 Container(
                                   width: 120,
                                   height: 12,
-                                  decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(4)),
+                                  decoration: BoxDecoration(color: AppColors.surfaceGrey, borderRadius: BorderRadius.circular(4)),
                                 ),
                               ],
                             ),
@@ -303,7 +287,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: AppColors.warmWhite,
+        color: AppColors.bg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Padding(
@@ -316,45 +300,67 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildChatOverlay() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: AppShadows.medium,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatDetailScreen(
+              roomId: _project!.id,
+              roomType: 'project',
+              roomName: '${_project!.title} Team Chat',
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppShadows.medium,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.textTertiary, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.textTertiary, size: 16),
-                  const SizedBox(width: 8),
-                  Text('Team Chat', style: AppTypography.labelMedium),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Team Chat', style: AppTypography.labelMedium),
+                      Text('Open', style: AppTypography.labelMedium.copyWith(color: AppColors.electricBlue)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 18,
+                        decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                        child: const Center(child: Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10))),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pushed the design files to Figma ✅',
+                          style: AppTypography.textXs.copyWith(color: AppColors.textSecondary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              Text('Open', style: AppTypography.labelMedium.copyWith(color: AppColors.electricBlue)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildAvatar('H', Colors.blue),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Pushed the design files to Figma ✅',
-                  style: AppTypography.bodySmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -426,25 +432,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               children: [
                 Text(stage.title, style: AppTypography.labelLarge.copyWith(fontSize: 16)),
                 const SizedBox(height: 4),
-                if (isCompleted || isActive)
-                  Text(
-                    '${stage.assignedUsers.isNotEmpty ? stage.assignedUserNames.first : 'Unassigned'} • ${isCompleted ? '3 deliverables' : '72% done'}', // Mock details
-                    style: AppTypography.bodySmall,
-                  )
-                else
-                  GestureDetector(
-                    onTap: () async {
-                      await _service.completeStep(_project!.id, stage.id);
-                      _loadProject();
-                    },
-                    child: Text(
-                      'Complete task',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.electricBlue,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                Text(
+                  '${stage.assignedUsers.isNotEmpty ? stage.assignedUserNames.first : 'Unassigned'} • ${isCompleted ? '3 deliverables' : isActive ? '72% done' : 'Not started'}', // Mock details
+                  style: AppTypography.bodySmall,
+                ),
               ],
             ),
           ),

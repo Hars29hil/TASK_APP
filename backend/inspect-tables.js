@@ -24,9 +24,8 @@ async function inspectTables() {
     
     const schema = await response.json();
     console.log("--- Definitions ---");
-    if (schema.definitions) {
         for (const [tableName, tableDef] of Object.entries(schema.definitions)) {
-            if (['tasks', 'task_steps', 'deadline_extensions'].includes(tableName)) {
+            if (['messages', 'task_group_messages'].includes(tableName)) {
                 console.log(`Table: ${tableName}`);
                 if (tableDef.properties) {
                     for (const [colName, colDef] of Object.entries(tableDef.properties)) {
@@ -35,7 +34,6 @@ async function inspectTables() {
                 }
             }
         }
-    }
 }
 
 inspectTables();

@@ -7,11 +7,11 @@ class ChatService {
   static final ChatService instance = ChatService._();
   final _supabase = Supabase.instance.client;
 
-  String get _currentUserId => _supabase.auth.currentUser?.id ?? '';
+  String get currentUserId => _supabase.auth.currentUser?.id ?? '';
 
   /// Fetch the list of all chats (Projects and DMs) for the current user
   Future<List<ChatListItem>> fetchChatList(String query) async {
-    if (_currentUserId.isEmpty) return [];
+    if (currentUserId.isEmpty) return [];
 
     List<ChatListItem> items = [];
 
@@ -21,13 +21,13 @@ class ChatService {
       if (query.isNotEmpty) {
         userQuery = userQuery.or('full_name.ilike.%$query%,email.ilike.%$query%');
       }
-      final userResponse = await userQuery.neq('id', _currentUserId).limit(20);
+      final userResponse = await userQuery.neq('id', currentUserId).limit(20);
 
       // 2. Fetch Projects (Task Groups)
       final membershipResponse = await _supabase
           .from('task_members')
           .select('task_id, role')
-          .eq('user_id', _currentUserId);
+          .eq('user_id', currentUserId);
 
       // Add DMs to the list
       for (var u in userResponse) {
@@ -101,7 +101,7 @@ class ChatService {
       .onBroadcast(
         event: 'typing',
         callback: (payload) {
-          if (payload['userId'] != _currentUserId) {
+          if (payload['userId'] != currentUserId) {
             onTyping(TypingStatus(
               userId: payload['userId'],
               roomId: roomId,
@@ -118,7 +118,133 @@ class ChatService {
   Future<void> sendTypingEvent(RealtimeChannel channel, String roomId) async {
     await channel.sendBroadcastMessage(
       event: 'typing',
-      payload: {'userId': _currentUserId, 'roomId': roomId},
+      payload: {'userId': currentUserId, 'roomId': roomId},
     );
+  }
+
+  /// Fetch historical messages for a room
+  Future<List<Message>> fetchMessages(String roomId, bool isProject) async {
+    if (currentUserId.isEmpty) return [];
+    
+    try {
+      if (isProject) {
+        final response = await _supabase
+            .from('task_group_messages')
+            .select('*')
+            .eq('task_id', roomId)
+            .order('created_at', ascending: true);
+            
+        return response.map((data) => Message(
+          id: data['id'].toString(),
+          projectId: data['task_id'],
+          authorId: data['sender_id'],
+          text: data['content'],
+          type: 'text',
+          createdAt: DateTime.parse(data['created_at']),
+        )).toList();
+      } else {
+        // DMs
+        final response = await _supabase
+            .from('messages')
+            .select('*')
+            .or('and(sender_id.eq.$currentUserId,receiver_id.eq.$roomId),and(sender_id.eq.$roomId,receiver_id.eq.$currentUserId)')
+            .order('created_at', ascending: true);
+            
+        return response.map((data) => Message(
+          id: data['id'].toString(),
+          authorId: data['sender_id'],
+          text: data['content'],
+          type: 'text',
+          createdAt: DateTime.parse(data['created_at']),
+        )).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching messages: $e");
+      return [];
+    }
+  }
+
+  /// Send a new message to a room
+  Future<Message?> sendMessage(String roomId, bool isProject, String text) async {
+    if (currentUserId.isEmpty) return null;
+    
+    try {
+      if (isProject) {
+        final data = await _supabase.from('task_group_messages').insert({
+          'task_id': roomId,
+          'sender_id': currentUserId,
+          'content': text,
+        }).select().single();
+        
+        return Message(
+          id: data['id'].toString(),
+          projectId: data['task_id'],
+          authorId: data['sender_id'],
+          text: data['content'],
+          type: 'text',
+          createdAt: DateTime.parse(data['created_at']),
+        );
+      } else {
+        final data = await _supabase.from('messages').insert({
+          'sender_id': currentUserId,
+          'receiver_id': roomId,
+          'content': text,
+        }).select().single();
+        
+        return Message(
+          id: data['id'].toString(),
+          authorId: data['sender_id'],
+          text: data['content'],
+          type: 'text',
+          createdAt: DateTime.parse(data['created_at']),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error sending message: $e");
+      return null;
+    }
+  }
+
+  /// Subscribe to Realtime messages for a room
+  RealtimeChannel subscribeToMessages(String roomId, bool isProject, Function(Message) onMessage) {
+    final table = isProject ? 'task_group_messages' : 'messages';
+    final filter = isProject 
+        ? PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'task_id',
+            value: roomId,
+          ) 
+        : null; 
+    
+    return _supabase.channel('public:$table:$roomId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: table,
+        filter: filter,
+        callback: (payload) {
+          final data = payload.newRecord;
+          // For DMs, ensure the message belongs to this conversation
+          if (!isProject) {
+            final sender = data['sender_id'];
+            final receiver = data['receiver_id'];
+            if (!((sender == currentUserId && receiver == roomId) || 
+                  (sender == roomId && receiver == currentUserId))) {
+              return;
+            }
+          }
+          
+          final msg = Message(
+            id: data['id'].toString(),
+            projectId: isProject ? data['task_id'] : null,
+            authorId: data['sender_id'],
+            text: data['content'],
+            type: 'text',
+            createdAt: DateTime.parse(data['created_at']),
+          );
+          onMessage(msg);
+        },
+      )
+      .subscribe();
   }
 }

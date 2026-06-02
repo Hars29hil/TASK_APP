@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_theme.dart';
 
-/// Typography System using Syne (Headers) and DM Sans (Body)
+/// Typography System using DM Sans for all text
 class AppTypography {
-  static final TextStyle h1 = GoogleFonts.syne(
+  static final TextStyle h1 = GoogleFonts.dmSans(
     fontSize: 32,
     fontWeight: FontWeight.w800,
     color: AppColors.textPrimary,
@@ -12,7 +12,7 @@ class AppTypography {
     letterSpacing: -0.5,
   );
 
-  static final TextStyle h2 = GoogleFonts.syne(
+  static final TextStyle h2 = GoogleFonts.dmSans(
     fontSize: 24,
     fontWeight: FontWeight.w800,
     color: AppColors.textPrimary,
@@ -20,7 +20,7 @@ class AppTypography {
     letterSpacing: -0.5,
   );
 
-  static final TextStyle h3 = GoogleFonts.syne(
+  static final TextStyle h3 = GoogleFonts.dmSans(
     fontSize: 18,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,

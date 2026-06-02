@@ -5,50 +5,53 @@ import 'app_typography.dart';
 /// Design Tokens for the Light Mode UI/UX Overhaul
 class AppColors {
   // Brand Colors
-  static const Color warmWhite = Color(0xFFF5F4F0);
-  static const Color ink = Color(0xFF111110);
-  static const Color electricBlue = Color(0xFF1A6CFF);
-  static const Color emerald = Color(0xFF00C27A);
-  static const Color highlight = Color(0xFF7C3AED);
-  static const Color warning = Color(0xFFF76F27);
+  static const Color background = Color(0xFFF8F9FA); // Clean light grey
+  static const Color ink = Color(0xFF111110); // Very dark grey/black
+  static const Color electricBlue = Color(0xFF2563EB); // Modern standard blue (Tailwind blue-600)
+  static const Color emerald = Color(0xFF10B981); // Modern emerald
+  static const Color highlight = Color(0xFF8B5CF6); // Modern purple
+  static const Color warning = Color(0xFFF59E0B); // Modern amber/orange
+  static const Color danger = Color(0xFFEF4444); // Modern red
 
   // Dim Accents
-  static const Color blueDim = Color(0xFFE8F0FF);
-  static const Color emeraldDim = Color(0xFFDCFAEE);
-  static const Color purpleDim = Color(0xFFEDE9FF);
-  static const Color orangeDim = Color(0xFFFFF0E8);
+  static const Color blueDim = Color(0xFFEFF6FF);
+  static const Color emeraldDim = Color(0xFFECFDF5);
+  static const Color purpleDim = Color(0xFFF5F3FF);
+  static const Color orangeDim = Color(0xFFFFFBEB);
 
   // Chat-specific
   static const Color bubbleSent = electricBlue;
   static const Color bubbleReceived = Colors.white;
-  static const Color bubbleSystem = warmWhite;
+  static const Color bubbleSystem = background;
   static const Color bubbleStatus = emeraldDim;
 
   // Backgrounds & Surfaces
-  static const Color bg = warmWhite;
+  static const Color bg = background;
   static const Color surfaceWhite = Colors.white;
-  static const Color surfaceGrey = Color(0xFFEAEAEC);
+  static const Color surfaceGrey = Color(0xFFF1F5F9); // Very light slate
+  static const Color border = Color(0xFFE2E8F0); // Subtle border color
   static const Color surfaceDark = ink;
 
   // Text
-  static const Color textPrimary = ink;
-  static const Color textSecondary = Color(0xFF6B6B70);
-  static const Color textTertiary = Color(0xFFA0A0A5);
+  static const Color textPrimary = Color(0xFF0F172A); // Slate 900
+  static const Color textSecondary = Color(0xFF64748B); // Slate 500
+  static const Color textTertiary = Color(0xFF94A3B8); // Slate 400
   static const Color textInverse = Colors.white;
 
   // Status mapping
   static Color statusColor(String status) {
     switch (status.toLowerCase()) {
       case 'completed':
+      case 'done':
         return emerald;
       case 'in_progress':
       case 'active':
       case 'ready':
         return electricBlue;
       case 'blocked':
-        return warning;
+        return danger;
       case 'extended':
-        return highlight;
+        return warning;
       default:
         return textTertiary;
     }
@@ -75,25 +78,30 @@ class AppRadius {
 class AppShadows {
   static final List<BoxShadow> soft = [
     BoxShadow(
-      color: AppColors.ink.withValues(alpha: 0.05),
-      blurRadius: 20,
-      offset: const Offset(0, 8),
+      color: Colors.black.withValues(alpha: 0.03),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.02),
+      blurRadius: 4,
+      offset: const Offset(0, 1),
     ),
   ];
   
   static final List<BoxShadow> medium = [
     BoxShadow(
-      color: AppColors.ink.withValues(alpha: 0.1),
-      blurRadius: 30,
-      offset: const Offset(0, 12),
+      color: Colors.black.withValues(alpha: 0.05),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
     ),
   ];
 
   static List<BoxShadow> glow(Color color) => [
     BoxShadow(
-      color: color.withValues(alpha: 0.3),
-      blurRadius: 24,
-      offset: const Offset(0, 8),
+      color: color.withValues(alpha: 0.25),
+      blurRadius: 12,
+      offset: const Offset(0, 4),
     ),
   ];
 }
@@ -129,7 +137,6 @@ ThemeData buildLightTheme() {
         color: AppColors.ink,
         fontSize: 18,
         fontWeight: FontWeight.w700,
-        fontFamily: 'Syne',
       ),
     ),
     useMaterial3: true,

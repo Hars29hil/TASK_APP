@@ -19,7 +19,7 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
     final events = ActivityEvent.mockEvents();
 
     return Scaffold(
-      backgroundColor: AppColors.warmWhite,
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -68,7 +68,7 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.electricBlue,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.warmWhite, width: 2),
+                    border: Border.all(color: AppColors.bg, width: 2),
                   ),
                   child: const Text('3', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),

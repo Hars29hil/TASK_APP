@@ -21,7 +21,7 @@ class DateDivider extends StatelessWidget {
             child: Text(
               _formatDate(date).toUpperCase(),
               style: AppTypography.textXs.copyWith(
-                fontFamily: 'Syne',
+                
                 fontWeight: FontWeight.w700,
                 color: AppColors.textTertiary,
                 letterSpacing: 1.5,
@@ -79,7 +79,7 @@ class MessageRow extends StatelessWidget {
                 child: Text(
                   user.name.isNotEmpty ? user.name[0] : '?',
                   style: AppTypography.textXs.copyWith(
-                    fontFamily: 'Syne',
+                    
                     fontWeight: FontWeight.w700,
                     color: AppColors.electricBlue,
                   ),
@@ -100,7 +100,7 @@ class MessageRow extends StatelessWidget {
                     child: Text(
                       user.name.toUpperCase(),
                       style: AppTypography.textXs.copyWith(
-                        fontFamily: 'Syne',
+                        
                         fontWeight: FontWeight.w700,
                         color: AppColors.textTertiary,
                         letterSpacing: 0.5,
@@ -125,7 +125,7 @@ class MessageRow extends StatelessWidget {
                         Text(
                           _formatTime(message.createdAt),
                           style: AppTypography.textXs.copyWith(
-                            fontFamily: 'Syne',
+                            
                             fontWeight: FontWeight.w700,
                             color: AppColors.textTertiary,
                           ),
@@ -134,7 +134,7 @@ class MessageRow extends StatelessWidget {
                           Text(
                             ' ✓✓',
                             style: AppTypography.textXs.copyWith(
-                              fontFamily: 'Syne',
+                              
                               fontWeight: FontWeight.w700,
                               color: AppColors.electricBlue,
                             ),
@@ -158,7 +158,7 @@ class MessageRow extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: AppColors.warmWhite,
+          color: AppColors.bg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.surfaceGrey),
         ),
@@ -228,7 +228,7 @@ class MessageRow extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(file.name, style: AppTypography.textXs.copyWith(fontFamily: 'Syne', fontWeight: FontWeight.w700, color: AppColors.ink)),
+                Text(file.name, style: AppTypography.textXs.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink)),
                 Text('${(file.size / 1024 / 1024).toStringAsFixed(1)} MB', style: AppTypography.textXs.copyWith(color: AppColors.textTertiary)),
               ],
             )
@@ -345,7 +345,7 @@ class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProv
             child: Text(
               widget.user.name.isNotEmpty ? widget.user.name[0] : '?',
               style: AppTypography.textXs.copyWith(
-                fontFamily: 'Syne',
+                
                 fontWeight: FontWeight.w700,
                 color: AppColors.electricBlue,
               ),

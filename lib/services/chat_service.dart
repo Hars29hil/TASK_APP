@@ -1,5 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/chat_models.dart';
 
 class ChatService {
@@ -8,6 +11,21 @@ class ChatService {
   final _supabase = Supabase.instance.client;
 
   String get currentUserId => _supabase.auth.currentUser?.id ?? '';
+
+  String get _backendUrl {
+    if (kIsWeb) {
+      final envUrl = dotenv.maybeGet('BACKEND_URL');
+      if (envUrl != null && envUrl.contains('http') && !envUrl.contains('10.0.2.2')) {
+        return envUrl;
+      }
+      return 'http://localhost:5000';
+    }
+    final envUrl = dotenv.maybeGet('BACKEND_URL');
+    if (envUrl != null && envUrl.isNotEmpty) return envUrl;
+    
+    // Default for Android emulator
+    return 'http://10.0.2.2:5000';
+  }
 
   /// Fetch the list of all chats (Projects and DMs) for the current user
   Future<List<ChatListItem>> fetchChatList(String query) async {
@@ -176,6 +194,21 @@ class ChatService {
           'content': text,
         }).select().single();
         
+        // Notify backend for group chat
+        try {
+          await http.post(
+            Uri.parse('$_backendUrl/api/send-group-chat-notification'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'task_id': roomId,
+              'sender_id': currentUserId,
+              'content': text,
+            }),
+          );
+        } catch (e) {
+          debugPrint("Push notification error: $e");
+        }
+        
         return Message(
           id: data['id'].toString(),
           projectId: data['task_id'],
@@ -190,6 +223,21 @@ class ChatService {
           'receiver_id': roomId,
           'content': text,
         }).select().single();
+        
+        // Notify backend for DM
+        try {
+          await http.post(
+            Uri.parse('$_backendUrl/api/send-chat-notification'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'sender_id': currentUserId,
+              'receiver_id': roomId,
+              'content': text,
+            }),
+          );
+        } catch (e) {
+          debugPrint("Push notification error: $e");
+        }
         
         return Message(
           id: data['id'].toString(),

@@ -497,6 +497,95 @@ app.post("/api/send-chat-notification", async (req, res) => {
 });
 
 // ======================================
+// GROUP CHAT - SEND NOTIFICATION
+// ======================================
+app.post("/api/send-group-chat-notification", async (req, res) => {
+    try {
+        const { task_id, sender_id, content, attachment_type } = req.body;
+
+        if (!task_id || !sender_id) {
+            return res.status(400).json({ success: false, message: "task_id and sender_id are required" });
+        }
+
+        console.log(`\n📩 Group message notification request: [Task: ${task_id}] [From: ${sender_id}]`);
+
+        // 1. Get Task Title
+        const { data: task } = await supabase
+            .from('tasks')
+            .select('title')
+            .eq('id', task_id)
+            .single();
+        const taskTitle = task ? task.title : 'Task Group';
+
+        // 2. Get Sender Name
+        const { data: sender } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', sender_id)
+            .single();
+        const senderName = sender ? sender.full_name : 'Someone';
+
+        // 3. Get all task members except sender
+        const { data: members, error: mError } = await supabase
+            .from('task_members')
+            .select('user_id')
+            .eq('task_id', task_id)
+            .neq('user_id', sender_id);
+
+        if (mError) throw mError;
+        if (!members || members.length === 0) {
+            return res.status(200).json({ success: true, message: "No other members to notify" });
+        }
+
+        const memberIds = members.map(m => m.user_id);
+
+        // 4. Fetch FCM tokens
+        const { data: profiles, error: pError } = await supabase
+            .from('profiles')
+            .select('id, fcm_token, full_name')
+            .in('id', memberIds)
+            .not('fcm_token', 'is', null);
+
+        if (pError) throw pError;
+        if (!profiles || profiles.length === 0) {
+            return res.status(200).json({ success: true, message: "No members with FCM tokens" });
+        }
+
+        let notificationBody = content || "Sent a new message";
+        if (attachment_type) {
+            notificationBody = `📁 Sent ${attachment_type === 'image' ? 'an image' : attachment_type === 'video' ? 'a video' : attachment_type === 'contact' ? 'a contact' : 'a file'}`;
+        }
+
+        let sentCount = 0;
+        for (const profile of profiles) {
+            try {
+                await sendPushNotification(
+                    profile.fcm_token,
+                    `Group: ${taskTitle}`,
+                    `${senderName}: ${notificationBody}`,
+                    { 
+                        type: "task_group_message",
+                        task_id: task_id,
+                        sender_id: sender_id
+                    }
+                );
+                sentCount++;
+            } catch (err) {
+                if (err.message.includes("not-found") || err.message.includes("not-registered")) {
+                    await supabase.from('profiles').update({ fcm_token: null }).eq('id', profile.id);
+                }
+            }
+        }
+
+        res.status(200).json({ success: true, message: `Notification sent to ${sentCount} members` });
+
+    } catch (error) {
+        console.error("💥 Critical Group Chat Notification Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ======================================
 // TEST UTILITIES (LOGS DASHBOARD ACTIONS)
 // ======================================
 

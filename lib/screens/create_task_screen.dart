@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_typography.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   const CreateTaskScreen({super.key});
@@ -20,7 +22,6 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   bool _isSubmitting = false;
 
   String get _backendUrl {
-    // If running on Web, ignore .env and use localhost (unless .env is an external URL)
     if (kIsWeb) {
       final envUrl = dotenv.maybeGet('BACKEND_URL');
       if (envUrl != null && envUrl.contains('http') && !envUrl.contains('10.0.2.2')) {
@@ -28,7 +29,6 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       }
       return 'http://localhost:5000';
     }
-
     final envUrl = dotenv.maybeGet('BACKEND_URL');
     if (envUrl != null && envUrl.isNotEmpty) return envUrl;
     
@@ -38,7 +38,6 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     return 'http://localhost:5000';
   }
 
-  // Steps list
   final List<Map<String, dynamic>> _steps = [
     {
       'title': '',
@@ -48,13 +47,9 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     },
   ];
 
-  // Leader
   Map<String, dynamic>? _leader;
-
-  // User search
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
-  // stepIndex passed directly to _showUserSearchDialog
   final _userSearchCtrl = TextEditingController();
 
   @override
@@ -111,24 +106,27 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         return Container(
           height: MediaQuery.of(ctx).size.height * 0.6,
           decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
           ),
           child: Column(children: [
-            const SizedBox(height: 10),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(stepIndex != null ? "Assign User to Step ${stepIndex + 1}" : "Select Leader", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.all(24),
+              child: Text(stepIndex != null ? "Assign User to Step ${stepIndex + 1}" : "Select Leader", style: AppTypography.heading2),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: TextField(
                 controller: _userSearchCtrl,
+                style: AppTypography.bodyLarge,
                 decoration: InputDecoration(
-                  hintText: "Search users...", prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                  filled: true, fillColor: Colors.grey[50],
+                  hintText: "Search users...", 
+                  hintStyle: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondary),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  filled: true, fillColor: AppColors.surface,
                 ),
                 onChanged: (v) async {
                   await _searchUsers(v);
@@ -136,11 +134,12 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Expanded(
               child: _isSearching
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _searchResults.length,
                     itemBuilder: (ctx, i) {
                       final user = _searchResults[i];
@@ -148,8 +147,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                         leading: CircleAvatar(
                           backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=${user['id']}'),
                         ),
-                        title: Text(user['full_name'] ?? 'Unknown'),
-                        subtitle: Text(user['email'] ?? '', style: const TextStyle(fontSize: 12)),
+                        title: Text(user['full_name'] ?? 'Unknown', style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600)),
+                        subtitle: Text(user['email'] ?? '', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
                         onTap: () {
                           setState(() {
                             if (stepIndex != null) {
@@ -176,7 +175,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       context: context, firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF4A00E0))),
+        data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primary)),
         child: child!,
       ),
     );
@@ -184,7 +183,6 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   }
 
   Future<void> _submitTask() async {
-    // Validate
     if (_titleCtrl.text.trim().isEmpty) {
       _showSnack("Please enter a task title"); return;
     }
@@ -210,7 +208,6 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         };
       }).toList();
 
-      // Collect all unique member IDs
       final memberIds = <String>{};
       for (var s in stepsPayload) {
         for (var uid in (s['assigned_users'] as List)) {
@@ -249,99 +246,98 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     }
   }
 
-  void _showSnack(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: const Color(0xFF4A00E0)));
+  void _showSnack(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.primary));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFF),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.close_rounded, color: Colors.black87), onPressed: () => Navigator.pop(context)),
-        title: const Text("Create Task", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent, 
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20), onPressed: () => Navigator.pop(context)),
+        title: Text("Create Task", style: AppTypography.heading2),
         centerTitle: true,
       ),
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 800),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Title
               _label("Task Title"),
               _inputField(_titleCtrl, "e.g. Mobile App Launch", Icons.title_rounded),
-              const SizedBox(height: 18),
+              const SizedBox(height: 24),
       
-              // Description
               _label("Description"),
               _inputField(_descCtrl, "Describe the task...", Icons.description_rounded, maxLines: 3),
-              const SizedBox(height: 18),
+              const SizedBox(height: 24),
       
-              // Priority
               _label("Priority"),
               _buildPrioritySelector(),
-              const SizedBox(height: 18),
+              const SizedBox(height: 24),
       
-              // Deadline
               _label("Deadline"),
               GestureDetector(
                 onTap: _pickDeadline,
                 child: Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.divider)),
                   child: Row(children: [
-                    const Icon(Icons.calendar_today_rounded, color: Color(0xFF4A00E0), size: 20),
+                    const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
                     const SizedBox(width: 12),
-                    Text(_deadline != null ? "${_deadline!.day}/${_deadline!.month}/${_deadline!.year}" : "Select deadline", style: TextStyle(color: _deadline != null ? Colors.black87 : Colors.grey)),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 18),
-      
-              // Leader
-              _label("Leader (Optional)"),
-              GestureDetector(
-                onTap: () => _showUserSearchDialog(),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
-                  child: Row(children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFF9500), size: 20),
-                    const SizedBox(width: 12),
-                    Text(_leader != null ? "⭐ ${_leader!['full_name']}" : "Assign a leader", style: TextStyle(color: _leader != null ? Colors.black87 : Colors.grey)),
-                    const Spacer(),
-                    if (_leader != null) GestureDetector(
-                      onTap: () => setState(() => _leader = null),
-                      child: const Icon(Icons.close, size: 18, color: Colors.grey),
-                    ),
+                    Text(_deadline != null ? "${_deadline!.day}/${_deadline!.month}/${_deadline!.year}" : "Select deadline", 
+                      style: AppTypography.bodyLarge.copyWith(color: _deadline != null ? AppColors.textPrimary : AppColors.textSecondary)),
                   ]),
                 ),
               ),
               const SizedBox(height: 24),
       
-              // Steps
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                _label("Steps"),
-                TextButton.icon(onPressed: _addStep, icon: const Icon(Icons.add_circle_rounded, size: 20, color: Color(0xFF4A00E0)), label: const Text("Add Step", style: TextStyle(color: Color(0xFF4A00E0), fontWeight: FontWeight.bold))),
-              ]),
-              const SizedBox(height: 8),
-              ..._steps.asMap().entries.map((e) => _buildStepCard(e.key)),
-              const SizedBox(height: 30),
+              _label("Leader (Optional)"),
+              GestureDetector(
+                onTap: () => _showUserSearchDialog(),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.divider)),
+                  child: Row(children: [
+                    const Icon(Icons.star_rounded, color: AppColors.warning, size: 20),
+                    const SizedBox(width: 12),
+                    Text(_leader != null ? "⭐ ${_leader!['full_name']}" : "Assign a leader", 
+                      style: AppTypography.bodyLarge.copyWith(color: _leader != null ? AppColors.textPrimary : AppColors.textSecondary)),
+                    const Spacer(),
+                    if (_leader != null) GestureDetector(
+                      onTap: () => setState(() => _leader = null),
+                      child: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 32),
       
-              // Submit
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text("Workflow Steps", style: AppTypography.heading2),
+                TextButton.icon(
+                  onPressed: _addStep, 
+                  icon: const Icon(Icons.add_circle_rounded, size: 20, color: AppColors.primary), 
+                  label: Text("Add Step", style: AppTypography.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold))
+                ),
+              ]),
+              const SizedBox(height: 16),
+              ..._steps.asMap().entries.map((e) => _buildStepCard(e.key)),
+              const SizedBox(height: 40),
+      
               SizedBox(
                 width: double.infinity, height: 56,
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submitTask,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A00E0),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    elevation: 8,
-                    shadowColor: const Color(0xFF4A00E0).withValues(alpha: 0.4),
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
                   ),
                   child: _isSubmitting
                     ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text("Create Task", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    : Text("Create Task", style: AppTypography.heading3.copyWith(color: Colors.white)),
                 ),
               ),
             ]),
@@ -352,36 +348,43 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   }
 
   Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E))),
+    padding: const EdgeInsets.only(bottom: 8, left: 4),
+    child: Text(text, style: AppTypography.heading3),
   );
 
   Widget _inputField(TextEditingController ctrl, String hint, IconData icon, {int maxLines = 1}) => Container(
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.divider)),
     child: TextField(
       controller: ctrl, maxLines: maxLines,
-      decoration: InputDecoration(hintText: hint, prefixIcon: Icon(icon, color: const Color(0xFF4A00E0), size: 20), border: InputBorder.none, contentPadding: const EdgeInsets.all(16)),
+      style: AppTypography.bodyLarge,
+      decoration: InputDecoration(
+        hintText: hint, 
+        hintStyle: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondary),
+        prefixIcon: Icon(icon, color: AppColors.primary, size: 20), 
+        border: InputBorder.none, 
+        contentPadding: const EdgeInsets.all(16)
+      ),
     ),
   );
 
   Widget _buildPrioritySelector() => Row(
     children: ['low', 'medium', 'high', 'urgent'].map((p) {
       final sel = _priority == p;
-      final color = switch (p) { 'urgent' => const Color(0xFFFF3B30), 'high' => const Color(0xFFFF9500), 'low' => const Color(0xFF34C759), _ => const Color(0xFF007AFF) };
+      final color = switch (p) { 'urgent' => AppColors.error, 'high' => AppColors.warning, 'low' => AppColors.success, _ => AppColors.info };
       return Expanded(
         child: GestureDetector(
           onTap: () => setState(() => _priority = p),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: sel ? color : Colors.white, borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: sel ? color : Colors.grey.withValues(alpha: 0.2)),
-              boxShadow: sel ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] : [],
+              color: sel ? color : AppColors.surface, borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: sel ? color : AppColors.divider),
+              boxShadow: sel ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))] : [],
             ),
             child: Text(p[0].toUpperCase() + p.substring(1), textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: sel ? Colors.white : Colors.grey[600])),
+              style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: sel ? Colors.white : AppColors.textSecondary)),
           ),
         ),
       );
@@ -394,66 +397,73 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     final users = step['assigned_users'] as List<Map<String, dynamic>>;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF4A00E0).withValues(alpha: 0.1)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)],
+        color: AppColors.surface, borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
-            width: 28, height: 28,
-            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)]), borderRadius: BorderRadius.circular(8)),
-            child: Center(child: Text("${index + 1}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
+            width: 32, height: 32,
+            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: Center(child: Text("${index + 1}", style: AppTypography.heading3.copyWith(color: AppColors.primary))),
           ),
-          const SizedBox(width: 10),
-          Expanded(child: TextField(controller: ctrl, decoration: const InputDecoration(hintText: "Step title...", border: InputBorder.none, isDense: true), style: const TextStyle(fontWeight: FontWeight.w600))),
-          if (_steps.length > 1) GestureDetector(onTap: () => _removeStep(index), child: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 22)),
+          const SizedBox(width: 12),
+          Expanded(child: TextField(
+            controller: ctrl, 
+            decoration: InputDecoration(
+              hintText: "Step title...", 
+              hintStyle: AppTypography.heading3.copyWith(color: AppColors.textSecondary),
+              border: InputBorder.none, isDense: true
+            ), 
+            style: AppTypography.heading3
+          )),
+          if (_steps.length > 1) GestureDetector(onTap: () => _removeStep(index), child: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 24)),
         ]),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         Row(
           children: [
-            const Icon(Icons.timer_outlined, size: 16, color: Colors.grey),
-            const SizedBox(width: 6),
-            const Text("Duration: ", style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const Icon(Icons.access_time_rounded, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            Text("Duration: ", style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary)),
             SizedBox(
               width: 50,
-              height: 30,
+              height: 32,
               child: TextField(
                 controller: step['duration_controller'] as TextEditingController,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                decoration: const InputDecoration(
+                style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
                   contentPadding: EdgeInsets.zero,
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
                   isDense: true,
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            const Text("days", style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(width: 8),
+            Text("days", style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary)),
           ],
         ),
-        const Divider(height: 20),
-        // Assigned users
-        Wrap(spacing: 6, runSpacing: 6, children: [
+        const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1, color: AppColors.divider)),
+        Wrap(spacing: 8, runSpacing: 8, children: [
           ...users.map((u) => Chip(
             avatar: CircleAvatar(backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=${u['id']}'), radius: 12),
-            label: Text(u['full_name'] ?? '', style: const TextStyle(fontSize: 12)),
-            deleteIcon: const Icon(Icons.close, size: 14),
+            label: Text(u['full_name'] ?? '', style: AppTypography.bodySmall),
+            deleteIcon: const Icon(Icons.close, size: 14, color: AppColors.textSecondary),
             onDeleted: () => setState(() => users.removeWhere((x) => x['id'] == u['id'])),
-            backgroundColor: const Color(0xFF4A00E0).withValues(alpha: 0.08),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: AppColors.background,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: AppColors.divider)),
           )),
           ActionChip(
-            avatar: const Icon(Icons.person_add_rounded, size: 16, color: Color(0xFF4A00E0)),
-            label: const Text("Assign", style: TextStyle(fontSize: 12, color: Color(0xFF4A00E0))),
+            avatar: const Icon(Icons.person_add_rounded, size: 16, color: AppColors.primary),
+            label: Text("Assign", style: AppTypography.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
             onPressed: () => _showUserSearchDialog(stepIndex: index),
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: const Color(0xFF4A00E0).withValues(alpha: 0.3))),
+            backgroundColor: AppColors.primary.withOpacity(0.05),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide.none),
           ),
         ]),
       ]),

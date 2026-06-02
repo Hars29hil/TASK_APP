@@ -27,6 +27,11 @@ class AppTypography {
     height: 1.3,
   );
 
+  // Legacy Aliases
+  static TextStyle get heading1 => h1;
+  static TextStyle get heading2 => h2;
+  static TextStyle get heading3 => h3;
+
   static final TextStyle bodyLarge = GoogleFonts.dmSans(
     fontSize: 16,
     fontWeight: FontWeight.w400,

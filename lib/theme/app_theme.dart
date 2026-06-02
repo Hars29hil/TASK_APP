@@ -38,6 +38,14 @@ class AppColors {
   static const Color textTertiary = Color(0xFF94A3B8); // Slate 400
   static const Color textInverse = Colors.white;
 
+  // Legacy Aliases
+  static const Color primary = electricBlue;
+  static const Color surface = surfaceWhite;
+  static const Color divider = border;
+  static const Color error = danger;
+  static const Color success = emerald;
+  static const Color info = electricBlue;
+
   // Status mapping
   static Color statusColor(String status) {
     switch (status.toLowerCase()) {

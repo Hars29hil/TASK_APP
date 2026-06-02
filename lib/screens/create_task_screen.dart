@@ -381,7 +381,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             decoration: BoxDecoration(
               color: sel ? color : AppColors.surface, borderRadius: BorderRadius.circular(16),
               border: Border.all(color: sel ? color : AppColors.divider),
-              boxShadow: sel ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))] : [],
+              boxShadow: sel ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))] : [],
             ),
             child: Text(p[0].toUpperCase() + p.substring(1), textAlign: TextAlign.center,
               style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: sel ? Colors.white : AppColors.textSecondary)),
@@ -402,13 +402,13 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface, borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.divider),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
             width: 32, height: 32,
-            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: Center(child: Text("${index + 1}", style: AppTypography.heading3.copyWith(color: AppColors.primary))),
           ),
           const SizedBox(width: 12),
@@ -462,7 +462,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             avatar: const Icon(Icons.person_add_rounded, size: 16, color: AppColors.primary),
             label: Text("Assign", style: AppTypography.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
             onPressed: () => _showUserSearchDialog(stepIndex: index),
-            backgroundColor: AppColors.primary.withOpacity(0.05),
+            backgroundColor: AppColors.primary.withValues(alpha: 0.05),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide.none),
           ),
         ]),

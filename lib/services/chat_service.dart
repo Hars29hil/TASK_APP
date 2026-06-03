@@ -42,6 +42,24 @@ class ChatService {
       final userResponse = await userQuery.neq('id', currentUserId).limit(20);
 
       for (var u in userResponse) {
+        // Fetch real last message for this DM
+        String lastMsgText = 'Tap to start chatting...';
+        String lastMsgAuthor = '';
+        DateTime lastMsgTime = DateTime.now();
+        try {
+          final lastMsgResp = await _supabase
+              .from('messages')
+              .select('content, sender_id, created_at')
+              .or('and(sender_id.eq.$currentUserId,receiver_id.eq.${u['id']}),and(sender_id.eq.${u['id']},receiver_id.eq.$currentUserId)')
+              .order('created_at', ascending: false)
+              .limit(1);
+          if (lastMsgResp.isNotEmpty) {
+            lastMsgText = lastMsgResp[0]['content'] ?? '';
+            lastMsgAuthor = lastMsgResp[0]['sender_id'] == currentUserId ? 'You' : '';
+            lastMsgTime = DateTime.parse(lastMsgResp[0]['created_at']);
+          }
+        } catch (_) {}
+
         items.add(
           ChatListItem(
             id: u['id'],
@@ -49,14 +67,14 @@ class ChatService {
             name: (u['full_name'] != null && u['full_name'].toString().isNotEmpty) 
               ? u['full_name'] 
               : u['email']?.toString().split('@')[0] ?? "User",
-            avatar: 'https://i.pravatar.cc/150?u=${u['id']}',
+            avatar: u['avatar_url'] ?? 'https://i.pravatar.cc/150?u=${u['id']}',
             lastMessage: ChatListItemLastMessage(
-              text: 'Tap to start chatting...',
-              authorName: '',
-              timestamp: DateTime.now(),
+              text: lastMsgText,
+              authorName: lastMsgAuthor,
+              timestamp: lastMsgTime,
             ),
             lastViewedAt: DateTime.now(),
-            isOnline: false,
+            isOnline: u['is_online'] == true,
           ),
         );
       }
@@ -66,45 +84,42 @@ class ChatService {
 
     // 2. Fetch Projects (Task Groups)
     try {
-      final membershipResponse = await _supabase
-          .from('task_members')
-          .select('task_id, role')
-          .eq('user_id', currentUserId);
+      final resp = await http.get(Uri.parse('$_backendUrl/tasks/$currentUserId'));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data['success'] == true) {
+          final tasks = data['tasks'] as List;
+          for (var task in tasks) {
+            if (query.isEmpty || task['title'].toString().toLowerCase().contains(query.toLowerCase())) {
+              String stageStatus = 'done';
+              if (task['status'] == 'active' || task['status'] == 'in_progress' || task['status'] == 'ready') {
+                stageStatus = 'active';
+              }
+              
+              int memberCount = 3;
+              if (task['task_members'] != null && task['task_members'] is List) {
+                memberCount = (task['task_members'] as List).length;
+              }
 
-      if (membershipResponse.isNotEmpty) {
-        final taskIds = membershipResponse.map((m) => m['task_id']).toList();
-        final tasksDetails = await _supabase
-            .from('tasks')
-            .select('id, title, status')
-            .inFilter('id', taskIds);
-
-        for (var task in tasksDetails) {
-          if (query.isEmpty || task['title'].toString().toLowerCase().contains(query.toLowerCase())) {
-            
-            // Map stage status
-            String stageStatus = 'done';
-            if (task['status'] == 'active' || task['status'] == 'in_progress' || task['status'] == 'ready') {
-              stageStatus = 'active';
-            }
-
-            items.add(
-              ChatListItem(
-                id: task['id'],
-                type: 'project',
-                name: task['title'],
-                emoji: '🚀',
-                currentStage: 'Development Phase',
-                stageStatus: stageStatus,
-                lastMessage: ChatListItemLastMessage(
-                  text: 'Group chat for this task...',
-                  authorName: 'System',
-                  timestamp: DateTime.now(),
+              items.add(
+                ChatListItem(
+                  id: task['id'],
+                  type: 'project',
+                  name: task['title'],
+                  emoji: '🚀',
+                  currentStage: 'Development Phase',
+                  stageStatus: stageStatus,
+                  lastMessage: ChatListItemLastMessage(
+                    text: 'Group chat for this task...',
+                    authorName: 'System',
+                    timestamp: DateTime.now(),
+                  ),
+                  lastViewedAt: DateTime.now(),
+                  memberCount: memberCount,
+                  messageCount: 0,
                 ),
-                lastViewedAt: DateTime.now(),
-                memberCount: 3,
-                messageCount: 0,
-              ),
-            );
+              );
+            }
           }
         }
       }
@@ -148,33 +163,35 @@ class ChatService {
     
     try {
       if (isProject) {
-        final response = await _supabase
-            .from('task_group_messages')
-            .select('*')
-            .eq('task_id', roomId)
-            .order('created_at', ascending: true);
-            
-        return response.map((data) {
-          List<MessageAttachment> attachments = [];
-          if (data['attachment_url'] != null) {
-            attachments.add(MessageAttachment(
-              id: 'attach_${data['id']}',
-              name: data['attachment_type'] == 'image' ? 'Image' : 'Attachment',
-              size: 0,
-              url: data['attachment_url'],
-              mimeType: data['attachment_type'] ?? 'file',
-            ));
+        final resp = await http.get(Uri.parse('$_backendUrl/tasks/$roomId/messages'));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body);
+          if (data['success'] == true) {
+            final msgs = data['messages'] as List;
+            return msgs.map((msgData) {
+              List<MessageAttachment> attachments = [];
+              if (msgData['attachment_url'] != null) {
+                attachments.add(MessageAttachment(
+                  id: 'attach_${msgData['id']}',
+                  name: msgData['attachment_type'] == 'image' ? 'Image' : 'Attachment',
+                  size: 0,
+                  url: msgData['attachment_url'],
+                  mimeType: msgData['attachment_type'] ?? 'file',
+                ));
+              }
+              return Message(
+                id: msgData['id'].toString(),
+                projectId: msgData['task_id'],
+                authorId: msgData['sender_id'],
+                text: msgData['content'] ?? '',
+                type: 'text',
+                createdAt: DateTime.parse(msgData['created_at']),
+                attachments: attachments,
+              );
+            }).toList();
           }
-          return Message(
-            id: data['id'].toString(),
-            projectId: data['task_id'],
-            authorId: data['sender_id'],
-            text: data['content'] ?? '',
-            type: 'text',
-            createdAt: DateTime.parse(data['created_at']),
-            attachments: attachments,
-          );
-        }).toList();
+        }
+        return [];
       } else {
         // DMs
         final response = await _supabase
@@ -216,37 +233,31 @@ class ChatService {
     
     try {
       if (isProject) {
-        final data = await _supabase.from('task_group_messages').insert({
-          'task_id': roomId,
-          'sender_id': currentUserId,
-          'content': text,
-          'attachment_url': attachmentUrl,
-          'attachment_type': attachmentType,
-        }).select().single();
-        
-        // Notify backend for group chat
-        try {
-          await http.post(
-            Uri.parse('$_backendUrl/api/send-group-chat-notification'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'task_id': roomId,
-              'sender_id': currentUserId,
-              'content': text,
-            }),
-          );
-        } catch (e) {
-          debugPrint("Push notification error: $e");
-        }
-        
-        return Message(
-          id: data['id'].toString(),
-          projectId: data['task_id'],
-          authorId: data['sender_id'],
-          text: data['content'],
-          type: 'text',
-          createdAt: DateTime.parse(data['created_at']),
+        // Route through backend to bypass RLS
+        final resp = await http.post(
+          Uri.parse('$_backendUrl/tasks/$roomId/messages'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'sender_id': currentUserId,
+            'content': text,
+            'attachment_url': attachmentUrl,
+            'attachment_type': attachmentType,
+          }),
         );
+
+        if (resp.statusCode == 200 || resp.statusCode == 201) {
+          final data = jsonDecode(resp.body);
+          final msgData = data['message'] ?? data;
+          return Message(
+            id: (msgData['id'] ?? DateTime.now().millisecondsSinceEpoch).toString(),
+            projectId: roomId,
+            authorId: currentUserId,
+            text: text,
+            type: 'text',
+            createdAt: DateTime.now(),
+          );
+        }
+        return null;
       } else {
         final data = await _supabase.from('messages').insert({
           'sender_id': currentUserId,

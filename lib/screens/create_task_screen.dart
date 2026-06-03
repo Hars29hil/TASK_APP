@@ -32,7 +32,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     final envUrl = dotenv.maybeGet('BACKEND_URL');
     if (envUrl != null && envUrl.isNotEmpty) return envUrl;
     
-    if (Theme.of(context).platform == TargetPlatform.android) {
+    if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:5000';
     }
     return 'http://localhost:5000';

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import '../models/activity_event.dart';
+import '../models/project.dart';
+import '../services/task_service.dart';
 
 class ActivityFeedScreen extends StatefulWidget {
   const ActivityFeedScreen({super.key});
@@ -12,11 +14,127 @@ class ActivityFeedScreen extends StatefulWidget {
 
 class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
   String _selectedFilter = 'All';
-  final List<String> _filters = ['All', 'App Launch', 'UI Redesign', 'E-Commerce'];
+  List<String> _filters = ['All'];
+  List<ActivityEvent> _events = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActivity();
+  }
+
+  Future<void> _loadActivity() async {
+    setState(() => _isLoading = true);
+    try {
+      final projects = await TaskService.instance.fetchProjects();
+      final events = _buildEventsFromProjects(projects);
+      
+      // Build unique project title filters
+      final projectTitles = projects.map((p) => p.title).toSet().toList();
+      
+      if (mounted) {
+        setState(() {
+          _events = events;
+          _filters = ['All', ...projectTitles.take(3)];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading activity: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  List<ActivityEvent> _buildEventsFromProjects(List<Project> projects) {
+    final List<ActivityEvent> events = [];
+    
+    for (final project in projects) {
+      // Task creation event
+      events.add(ActivityEvent(
+        id: 'created_${project.id}',
+        type: 'task_created',
+        actorName: project.members.isNotEmpty ? project.members.first.name : 'Admin',
+        description: 'Created new project "${project.title}"',
+        timestamp: project.createdAt,
+        projectTitle: project.title,
+      ));
+      
+      // Member events
+      for (final member in project.members) {
+        if (member.role != 'admin') {
+          events.add(ActivityEvent(
+            id: 'member_${project.id}_${member.userId}',
+            type: 'member_added',
+            actorName: 'Admin',
+            description: 'Added ${member.name} to "${project.title}"',
+            timestamp: project.createdAt.add(const Duration(minutes: 1)),
+            projectTitle: project.title,
+          ));
+        }
+      }
+      
+      // Stage events
+      for (final stage in project.stages) {
+        if (stage.startedAt != null) {
+          events.add(ActivityEvent(
+            id: 'started_${stage.id}',
+            type: 'step_started',
+            actorName: stage.assignedUserNames.isNotEmpty ? stage.assignedUserNames.first : 'System',
+            description: 'Started "${stage.title}"',
+            timestamp: stage.startedAt!,
+            projectTitle: project.title,
+          ));
+        }
+        
+        if (stage.status == 'completed') {
+          events.add(ActivityEvent(
+            id: 'completed_${stage.id}',
+            type: 'step_completed',
+            actorName: stage.assignedUserNames.isNotEmpty ? stage.assignedUserNames.first : 'System',
+            description: 'Completed "${stage.title}"',
+            timestamp: stage.startedAt?.add(Duration(days: stage.durationDays)) ?? project.createdAt,
+            projectTitle: project.title,
+          ));
+        }
+        
+        if (stage.status == 'blocked') {
+          events.add(ActivityEvent(
+            id: 'blocked_${stage.id}',
+            type: 'step_blocked',
+            actorName: stage.assignedUserNames.isNotEmpty ? stage.assignedUserNames.first : 'System',
+            description: 'Blocked "${stage.title}" — ${stage.blockedReason ?? 'No reason'}',
+            timestamp: stage.startedAt ?? project.createdAt,
+            projectTitle: project.title,
+          ));
+        }
+        
+        if (stage.extensionDays > 0) {
+          events.add(ActivityEvent(
+            id: 'extension_${stage.id}',
+            type: 'extension_approved',
+            actorName: 'Leader',
+            description: 'Extension +${stage.extensionDays} days approved for "${stage.title}"',
+            timestamp: stage.startedAt?.add(Duration(days: stage.durationDays ~/ 2)) ?? project.createdAt,
+            projectTitle: project.title,
+          ));
+        }
+      }
+    }
+    
+    // Sort by most recent
+    events.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return events;
+  }
+
+  List<ActivityEvent> get _filteredEvents {
+    if (_selectedFilter == 'All') return _events;
+    return _events.where((e) => e.projectTitle == _selectedFilter).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final events = ActivityEvent.mockEvents();
+    final events = _filteredEvents;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -26,13 +144,32 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
             _buildHeader(),
             _buildFilters(),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
-                itemCount: events.length,
-                itemBuilder: (context, index) {
-                  return _buildTimelineItem(events[index], isLast: index == events.length - 1);
-                },
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.electricBlue))
+                  : events.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.history_rounded, size: 48, color: AppColors.textTertiary.withValues(alpha: 0.3)),
+                              const SizedBox(height: 16),
+                              Text('No activity yet', style: AppTypography.h3),
+                              const SizedBox(height: 8),
+                              Text('Activity events will appear here.', style: AppTypography.bodySmall),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadActivity,
+                          color: AppColors.electricBlue,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
+                            itemCount: events.length,
+                            itemBuilder: (context, index) {
+                              return _buildTimelineItem(events[index], isLast: index == events.length - 1);
+                            },
+                          ),
+                        ),
             ),
           ],
         ),
@@ -60,19 +197,20 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
                 ),
                 child: const Icon(Icons.notifications_none_rounded, color: AppColors.ink),
               ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.electricBlue,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.bg, width: 2),
+              if (_events.isNotEmpty)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.electricBlue,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.bg, width: 2),
+                    ),
+                    child: Text('${_events.length > 99 ? '99+' : _events.length}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                   ),
-                  child: const Text('3', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
-              ),
             ],
           ),
         ],
@@ -189,7 +327,7 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(event.projectTitle == 'App Redesign' ? '🎨 ' : '🚀 ', style: const TextStyle(fontSize: 12)),
+                            const Text('🚀 ', style: TextStyle(fontSize: 12)),
                             Text(
                               event.projectTitle ?? 'General',
                               style: AppTypography.labelSmall.copyWith(color: AppColors.ink),
@@ -217,7 +355,9 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
     if (type == 'step_completed') return Icons.check_rounded;
     if (type == 'step_started') return Icons.bolt_rounded;
     if (type == 'member_added') return Icons.person_rounded;
-    if (type == 'task_created') return Icons.attach_file_rounded;
+    if (type == 'task_created') return Icons.add_task_rounded;
+    if (type == 'step_blocked') return Icons.block_rounded;
+    if (type == 'extension_approved') return Icons.schedule_rounded;
     return Icons.science_rounded;
   }
 
@@ -226,6 +366,8 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
     if (type == 'step_started') return AppColors.electricBlue;
     if (type == 'member_added') return AppColors.highlight;
     if (type == 'task_created') return AppColors.warning;
+    if (type == 'step_blocked') return AppColors.danger;
+    if (type == 'extension_approved') return AppColors.warning;
     return AppColors.emerald;
   }
 
@@ -233,7 +375,9 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
     if (type == 'step_completed') return 'completed';
     if (type == 'step_started') return 'activated';
     if (type == 'member_added') return 'assigned';
-    if (type == 'task_created') return 'uploaded';
+    if (type == 'task_created') return 'created';
+    if (type == 'step_blocked') return 'blocked';
+    if (type == 'extension_approved') return 'approved extension for';
     return 'updated';
   }
 
@@ -245,8 +389,10 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
 
   String _timeAgo(DateTime time) {
     final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return 'just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
     if (diff.inHours < 24) return '${diff.inHours} hr ago';
+    if (diff.inDays == 1) return 'yesterday';
     return '${diff.inDays} days ago';
   }
 }

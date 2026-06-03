@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart' as g_sign_in;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:crypto/crypto.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dashboard_screen.dart';
 import '../theme/app_theme.dart';
@@ -20,14 +21,16 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   bool _isGoogleInitialized = false;
-  bool _isLogin = true; // Toggle for visual state
+  bool _isLogin = true;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  StreamSubscription<AuthState>? _authSubscription;
 
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -40,15 +43,21 @@ class _AuthScreenState extends State<AuthScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-      // Success will automatically be handled by auth state listener
+      if (_isLogin) {
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+      } else {
+        await Supabase.instance.client.auth.signUp(
+          email: email,
+          password: password,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Login Failed: $e")),
+          SnackBar(content: Text("${_isLogin ? 'Login' : 'Sign Up'} Failed: $e")),
         );
         setState(() => _isLoading = false);
       }
@@ -62,7 +71,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _setupAuthListener() {
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (!mounted) return;
       final AuthChangeEvent event = data.event;
       if (event == AuthChangeEvent.signedIn && data.session != null) {
@@ -291,64 +300,63 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       )
                     else ...[
-                      if (_isLogin) ...[
-                        TextField(
-                          controller: _emailController,
-                          decoration: InputDecoration(
-                            labelText: "Email",
-                            border: OutlineInputBorder(
+                      // Email/Password fields (shown in both login and signup)
+                      TextField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: "Email",
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: "Password",
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _signInWithEmail,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.electricBlue,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
                           ),
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            labelText: "Password",
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
+                          child: Text(
+                            _isLogin ? "Log In" : "Sign Up",
+                            style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600),
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _signInWithEmail,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.electricBlue,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: const Text(
-                              "Log In",
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600),
-                            ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          const Expanded(child: Divider()),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text("OR", style: AppTypography.bodySmall),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            const Expanded(child: Divider()),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                              child: Text("OR", style: AppTypography.bodySmall),
-                            ),
-                            const Expanded(child: Divider()),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
+                          const Expanded(child: Divider()),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       _SocialButton(
                         text: _isLogin
                             ? "Continue with Google"

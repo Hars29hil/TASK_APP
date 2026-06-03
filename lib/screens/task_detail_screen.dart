@@ -104,7 +104,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Mobile App • ${_project!.stages.length} stages • Due Jun 15', // Hardcoded subtitle match
+            '${_project!.description ?? 'Task'} • ${_project!.stages.length} stages${_project!.deadline != null ? ' • Due ${_formatDate(_project!.deadline!)}' : ''}',
             style: AppTypography.bodyMedium,
           ),
           const SizedBox(height: 24),
@@ -380,22 +380,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       bg = AppColors.emerald.withValues(alpha: 0.1);
       iconColor = AppColors.emerald;
       icon = Icons.check_box_rounded;
-      rightTextTop = 'May 10'; // Mock
+      rightTextTop = stage.deadline != null ? _formatDate(stage.deadline!) : '';
       rightTextBottom = 'Done';
       rightTextColor = AppColors.emerald;
     } else if (isActive) {
       bg = AppColors.electricBlue.withValues(alpha: 0.1);
       iconColor = AppColors.electricBlue;
-      icon = Icons.bolt_rounded; // Lightning bolt matching mockup
-      rightTextTop = 'May 27'; // Mock
-      rightTextBottom = 'Today';
+      icon = Icons.bolt_rounded;
+      rightTextTop = stage.deadline != null ? _formatDate(stage.deadline!) : '';
+      rightTextBottom = stage.startedAt != null ? _timeLeft(stage) : 'Active';
       rightTextColor = AppColors.electricBlue;
     } else {
       bg = AppColors.surfaceGrey;
       iconColor = AppColors.textTertiary;
-      icon = Icons.stop_rounded; // Square
-      rightTextTop = 'Jun 5'; // Mock
-      rightTextBottom = '9d';
+      icon = Icons.stop_rounded;
+      rightTextTop = stage.deadline != null ? _formatDate(stage.deadline!) : '';
+      rightTextBottom = '${stage.durationDays}d';
       rightTextColor = AppColors.textTertiary;
     }
 
@@ -453,5 +453,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}';
+  }
+
+  String _timeLeft(Stage stage) {
+    if (stage.deadline != null) {
+      final diff = stage.deadline!.difference(DateTime.now());
+      if (diff.isNegative) return 'Overdue';
+      if (diff.inDays == 0) return 'Today';
+      return '${diff.inDays}d left';
+    }
+    return 'Active';
   }
 }

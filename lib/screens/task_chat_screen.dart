@@ -43,7 +43,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
     final envUrl = dotenv.maybeGet('BACKEND_URL');
     if (envUrl != null && envUrl.isNotEmpty) return envUrl;
     
-    if (Theme.of(context).platform == TargetPlatform.android) {
+    if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:5000';
     }
     return 'http://localhost:5000';
@@ -72,7 +72,19 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
         schema: 'public',
         table: 'task_group_messages',
         filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'task_id', value: widget.taskId),
-        callback: (_) => _fetchMessages(),
+        callback: (payload) {
+          final data = payload.newRecord;
+          if (data.isNotEmpty && mounted) {
+            final newMsg = Map<String, dynamic>.from(data);
+            // Avoid adding duplicate
+            if (!_messages.any((m) => m['id'].toString() == newMsg['id'].toString())) {
+              setState(() {
+                _messages.add(newMsg);
+              });
+              _scrollToBottom();
+            }
+          }
+        },
       )
       .subscribe();
   }

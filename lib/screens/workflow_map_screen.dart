@@ -306,8 +306,8 @@ class _WorkflowMapScreenState extends State<WorkflowMapScreen> {
           ),
           const SizedBox(height: 24),
           _buildInfoRow('Assigned', activeStage.assignedUserNames.isNotEmpty ? activeStage.assignedUserNames.first : 'Unassigned'),
-          _buildInfoRow('Due Date', 'Today, 6 PM', valueColor: AppColors.warning), // Hardcoded for mockup match
-          _buildInfoRow('Dependencies', 'Design ✓'), // Hardcoded for mockup match
+          _buildInfoRow('Due Date', activeStage.deadline != null ? _formatDueDate(activeStage.deadline!) : 'No deadline', valueColor: activeStage.deadline != null && activeStage.deadline!.isBefore(DateTime.now().add(const Duration(days: 1))) ? AppColors.warning : null),
+          _buildInfoRow('Duration', '${activeStage.durationDays + activeStage.extensionDays} days'),
         ],
       ),
     );
@@ -343,6 +343,16 @@ class _WorkflowMapScreenState extends State<WorkflowMapScreen> {
         ],
       ),
     );
+  }
+
+  String _formatDueDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = date.difference(now);
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Tomorrow';
+    if (diff.isNegative) return 'Overdue (${months[date.month - 1]} ${date.day})';
+    return '${months[date.month - 1]} ${date.day}';
   }
 
   String _formatStatus(String s) {

@@ -90,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Good morning,\n${_userName.isNotEmpty ? _userName : 'User'}',
+                '${_getGreeting()},\n${_userName.isNotEmpty ? _userName : 'User'}',
                 style: AppTypography.h1,
               ),
               const SizedBox(height: 8),
@@ -268,6 +268,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
   String _formatCurrentDate() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -38,7 +39,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   bool _isLoading = true;
   bool _isUploading = false;
   RealtimeChannel? _subscription;
+  Timer? _pollingTimer;
   String _currentUserId = '';
+  final Map<String, String> _userNames = {}; // Cache sender_id -> name
 
   static final String _cloudinaryCloudName = dotenv.get('CLOUDINARY_CLOUD_NAME', fallback: '');
   static final String _cloudinaryUploadPreset = dotenv.get('CLOUDINARY_UPLOAD_PRESET', fallback: '');
@@ -61,7 +64,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       _messages = msgs;
       _isLoading = false;
     });
-    _scrollToBottom();
+
+    // Fetch unique user profiles for sender names
+    final uniqueIds = msgs.map((m) => m.authorId).toSet();
+    for (final uid in uniqueIds) {
+      _fetchSingleUserName(uid);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
     // Subscribe to new messages
     _subscription = ChatService.instance.subscribeToMessages(
@@ -79,11 +89,60 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         _scrollToBottom();
       }
     );
+
+    // Setup polling for group chats to bypass RLS Realtime limitations
+    if (isProject) {
+      _pollingTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+        _pollNewMessages();
+      });
+    }
+  }
+
+  void _pollNewMessages() async {
+    if (!mounted) return;
+    final isProject = widget.roomType == 'project';
+    final msgs = await ChatService.instance.fetchMessages(widget.roomId, isProject);
+    if (!mounted) return;
+    
+    bool addedAny = false;
+    for (final newMsg in msgs) {
+      if (!_messages.any((m) => m.id == newMsg.id)) {
+        _messages.add(newMsg);
+        addedAny = true;
+        _fetchSingleUserName(newMsg.authorId);
+      }
+    }
+    
+    if (addedAny) {
+      setState(() {});
+      _scrollToBottom();
+    }
+  }
+
+  void _fetchSingleUserName(String uid) async {
+    if (_userNames.containsKey(uid)) return;
+    if (uid == _currentUserId) {
+      _userNames[uid] = 'Me';
+      return;
+    }
+    try {
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', uid)
+          .maybeSingle();
+      if (profile != null && mounted) {
+        setState(() {
+          _userNames[uid] = profile['full_name'] ?? profile['email']?.toString().split('@')[0] ?? 'User';
+        });
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _subscription?.unsubscribe();
+    _pollingTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -232,10 +291,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       final msg = _messages[index];
                       final isMine = msg.authorId == _currentUserId;
                       
-                      // Mock user mapping (in real app, fetch user profiles from DB)
                       final user = User(
                         id: msg.authorId,
-                        name: isMine ? 'Me' : 'Alice',
+                        name: _userNames[msg.authorId] ?? (isMine ? 'Me' : 'User'),
                         email: '',
                       );
 

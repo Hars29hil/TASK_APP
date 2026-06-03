@@ -33,21 +33,14 @@ class ChatService {
 
     List<ChatListItem> items = [];
 
+    // 1. Fetch DMs (Users)
     try {
-      // 1. Fetch DMs (Users)
       var userQuery = _supabase.from('profiles').select();
       if (query.isNotEmpty) {
         userQuery = userQuery.or('full_name.ilike.%$query%,email.ilike.%$query%');
       }
       final userResponse = await userQuery.neq('id', currentUserId).limit(20);
 
-      // 2. Fetch Projects (Task Groups)
-      final membershipResponse = await _supabase
-          .from('task_members')
-          .select('task_id, role')
-          .eq('user_id', currentUserId);
-
-      // Add DMs to the list
       for (var u in userResponse) {
         items.add(
           ChatListItem(
@@ -67,8 +60,17 @@ class ChatService {
           ),
         );
       }
+    } catch (e) {
+      debugPrint("Error fetching DMs: $e");
+    }
 
-      // Add Projects to the list
+    // 2. Fetch Projects (Task Groups)
+    try {
+      final membershipResponse = await _supabase
+          .from('task_members')
+          .select('task_id, role')
+          .eq('user_id', currentUserId);
+
       if (membershipResponse.isNotEmpty) {
         final taskIds = membershipResponse.map((m) => m['task_id']).toList();
         final tasksDetails = await _supabase
@@ -90,8 +92,8 @@ class ChatService {
                 id: task['id'],
                 type: 'project',
                 name: task['title'],
-                emoji: '🚀', // Mock
-                currentStage: 'Development Phase', // Mock
+                emoji: '🚀',
+                currentStage: 'Development Phase',
                 stageStatus: stageStatus,
                 lastMessage: ChatListItemLastMessage(
                   text: 'Group chat for this task...',
@@ -99,15 +101,15 @@ class ChatService {
                   timestamp: DateTime.now(),
                 ),
                 lastViewedAt: DateTime.now(),
-                memberCount: 3, // Mock
-                messageCount: 0, // Mock
+                memberCount: 3,
+                messageCount: 0,
               ),
             );
           }
         }
       }
     } catch (e) {
-      debugPrint("Error fetching chat list: $e");
+      debugPrint("Error fetching Projects chat list: $e");
     }
 
     return items;
@@ -152,14 +154,27 @@ class ChatService {
             .eq('task_id', roomId)
             .order('created_at', ascending: true);
             
-        return response.map((data) => Message(
-          id: data['id'].toString(),
-          projectId: data['task_id'],
-          authorId: data['sender_id'],
-          text: data['content'],
-          type: 'text',
-          createdAt: DateTime.parse(data['created_at']),
-        )).toList();
+        return response.map((data) {
+          List<MessageAttachment> attachments = [];
+          if (data['attachment_url'] != null) {
+            attachments.add(MessageAttachment(
+              id: 'attach_${data['id']}',
+              name: data['attachment_type'] == 'image' ? 'Image' : 'Attachment',
+              size: 0,
+              url: data['attachment_url'],
+              mimeType: data['attachment_type'] ?? 'file',
+            ));
+          }
+          return Message(
+            id: data['id'].toString(),
+            projectId: data['task_id'],
+            authorId: data['sender_id'],
+            text: data['content'] ?? '',
+            type: 'text',
+            createdAt: DateTime.parse(data['created_at']),
+            attachments: attachments,
+          );
+        }).toList();
       } else {
         // DMs
         final response = await _supabase
@@ -168,13 +183,26 @@ class ChatService {
             .or('and(sender_id.eq.$currentUserId,receiver_id.eq.$roomId),and(sender_id.eq.$roomId,receiver_id.eq.$currentUserId)')
             .order('created_at', ascending: true);
             
-        return response.map((data) => Message(
-          id: data['id'].toString(),
-          authorId: data['sender_id'],
-          text: data['content'],
-          type: 'text',
-          createdAt: DateTime.parse(data['created_at']),
-        )).toList();
+        return response.map((data) {
+          List<MessageAttachment> attachments = [];
+          if (data['attachment_url'] != null) {
+            attachments.add(MessageAttachment(
+              id: 'attach_${data['id']}',
+              name: data['attachment_type'] == 'image' ? 'Image' : 'Attachment',
+              size: 0,
+              url: data['attachment_url'],
+              mimeType: data['attachment_type'] ?? 'file',
+            ));
+          }
+          return Message(
+            id: data['id'].toString(),
+            authorId: data['sender_id'],
+            text: data['content'] ?? '',
+            type: 'text',
+            createdAt: DateTime.parse(data['created_at']),
+            attachments: attachments,
+          );
+        }).toList();
       }
     } catch (e) {
       debugPrint("Error fetching messages: $e");
@@ -183,7 +211,7 @@ class ChatService {
   }
 
   /// Send a new message to a room
-  Future<Message?> sendMessage(String roomId, bool isProject, String text) async {
+  Future<Message?> sendMessage(String roomId, bool isProject, String text, {String? attachmentUrl, String? attachmentType}) async {
     if (currentUserId.isEmpty) return null;
     
     try {
@@ -192,6 +220,8 @@ class ChatService {
           'task_id': roomId,
           'sender_id': currentUserId,
           'content': text,
+          'attachment_url': attachmentUrl,
+          'attachment_type': attachmentType,
         }).select().single();
         
         // Notify backend for group chat
@@ -222,6 +252,8 @@ class ChatService {
           'sender_id': currentUserId,
           'receiver_id': roomId,
           'content': text,
+          'attachment_url': attachmentUrl,
+          'attachment_type': attachmentType,
         }).select().single();
         
         // Notify backend for DM
@@ -282,13 +314,25 @@ class ChatService {
             }
           }
           
+          List<MessageAttachment> attachments = [];
+          if (data['attachment_url'] != null) {
+            attachments.add(MessageAttachment(
+              id: 'attach_${data['id']}',
+              name: data['attachment_type'] == 'image' ? 'Image' : 'Attachment',
+              size: 0,
+              url: data['attachment_url'],
+              mimeType: data['attachment_type'] ?? 'file',
+            ));
+          }
+
           final msg = Message(
             id: data['id'].toString(),
             projectId: isProject ? data['task_id'] : null,
             authorId: data['sender_id'],
-            text: data['content'],
+            text: data['content'] ?? '',
             type: 'text',
             createdAt: DateTime.parse(data['created_at']),
+            attachments: attachments,
           );
           onMessage(msg);
         },

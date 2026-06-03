@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 import '../services/chat_service.dart';
 import '../components/chat/chat_top_bar.dart';
 import '../components/chat/chat_message_components.dart';
@@ -31,8 +36,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   List<Message> _messages = [];
   bool _isLoading = true;
+  bool _isUploading = false;
   RealtimeChannel? _subscription;
   String _currentUserId = '';
+
+  static final String _cloudinaryCloudName = dotenv.get('CLOUDINARY_CLOUD_NAME', fallback: '');
+  static final String _cloudinaryUploadPreset = dotenv.get('CLOUDINARY_UPLOAD_PRESET', fallback: '');
 
   @override
   void initState() {
@@ -91,17 +100,77 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
+  Future<String?> _uploadToCloudinary(PlatformFile file, String resourceType) async {
+    setState(() => _isUploading = true);
+    try {
+      final url = Uri.parse('https://api.cloudinary.com/v1_1/$_cloudinaryCloudName/$resourceType/upload');
+      final request = http.MultipartRequest('POST', url);
+      request.fields['upload_preset'] = _cloudinaryUploadPreset;
+      
+      if (kIsWeb && file.bytes != null) {
+        request.files.add(http.MultipartFile.fromBytes('file', file.bytes!, filename: file.name));
+      } else if (file.path != null) {
+        request.files.add(await http.MultipartFile.fromPath('file', file.path!));
+      }
+      
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final data = jsonDecode(await response.stream.bytesToString());
+        return data['secure_url'] as String?;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
   void _sendMessage(String text, List<dynamic>? attachments) async {
     final isProject = widget.roomType == 'project';
+    String? attachmentUrl;
+    String? attachmentType;
+
+    if (attachments != null && attachments.isNotEmpty) {
+      final file = attachments.first as PlatformFile;
+      final ext = file.extension?.toLowerCase() ?? '';
+      
+      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext)) {
+        attachmentType = 'image';
+      } else if (['mp4', 'mov', 'avi'].contains(ext)) {
+        attachmentType = 'video';
+      } else {
+        attachmentType = 'raw'; // Used for raw files in Cloudinary
+      }
+
+      attachmentUrl = await _uploadToCloudinary(file, attachmentType == 'raw' ? 'raw' : (attachmentType == 'image' ? 'image' : 'video'));
+      
+      if (attachmentUrl != null) {
+        if (text.isEmpty) text = '[${attachmentType == 'image' ? 'Image' : (attachmentType == 'video' ? 'Video' : 'File')}]';
+        if (attachmentType == 'raw') attachmentType = 'file'; // Convert back for DB
+      } else {
+        // If upload failed, don't send message
+        return;
+      }
+    } else if (text.startsWith("📇 Contact:")) {
+      attachmentType = 'contact';
+    }
+
+    final realMsg = await ChatService.instance.sendMessage(
+      widget.roomId, 
+      isProject, 
+      text,
+      attachmentUrl: attachmentUrl,
+      attachmentType: attachmentType,
+    );
     
-    final realMsg = await ChatService.instance.sendMessage(widget.roomId, isProject, text);
     if (realMsg != null && mounted) {
-      // Add the real message from DB to the UI instantly.
-      // The realtime subscription will ignore it because the ID matches.
-      setState(() {
-        _messages.add(realMsg);
-      });
-      _scrollToBottom();
+      if (!_messages.any((m) => m.id == realMsg.id)) {
+        setState(() {
+          _messages.add(realMsg);
+        });
+        _scrollToBottom();
+      }
     }
   }
 
@@ -187,6 +256,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     },
                   ),
             ),
+
+            if (_isUploading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.electricBlue)),
+                    SizedBox(width: 10),
+                    Text("Uploading attachment...", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
 
             // Composer
             ChatComposer(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/registration_screen.dart';
+import 'screens/auth_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -139,7 +139,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Task App',
       theme: buildLightTheme(),
-      home: session != null ? const DashboardScreen() : const RegistrationScreen(),
+      home: session != null ? const DashboardScreen() : const AuthScreen(),
     );
   }
 }

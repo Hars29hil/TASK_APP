@@ -202,8 +202,34 @@ class MessageRow extends StatelessWidget {
     }
 
     if (message.attachments.isNotEmpty) {
-      // Mock File Attachment Bubble
       final file = message.attachments.first;
+      
+      if (file.mimeType == 'image') {
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isMine ? 16 : 4),
+              bottomRight: Radius.circular(isMine ? 4 : 16),
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.network(
+            file.url,
+            width: 250,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 200,
+              height: 200,
+              color: AppColors.surfaceGrey,
+              child: const Icon(Icons.broken_image, color: AppColors.textTertiary),
+            ),
+          ),
+        );
+      }
+
+      // Mock File Attachment Bubble for non-images
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(

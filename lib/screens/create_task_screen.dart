@@ -105,16 +105,16 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) {
         return Container(
           height: MediaQuery.of(ctx).size.height * 0.6,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
           ),
           child: Column(children: [
             const SizedBox(height: 12),
             Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
             Padding(
               padding: const EdgeInsets.all(24),
-              child: Text(stepIndex != null ? "Assign User to Step ${stepIndex + 1}" : "Select Leader", style: AppTypography.heading2),
+              child: Text(stepIndex != null ? "Assign User to Step ${stepIndex + 1}" : "Select Leader", style: AppTypography.h2),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -137,7 +137,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             const SizedBox(height: 16),
             Expanded(
               child: _isSearching
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _searchResults.length,
@@ -256,7 +256,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         backgroundColor: Colors.transparent, 
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20), onPressed: () => Navigator.pop(context)),
-        title: Text("Create Task", style: AppTypography.heading2),
+        title: Text("Create Task", style: AppTypography.h2),
         centerTitle: true,
       ),
       body: Center(
@@ -284,7 +284,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.divider)),
                   child: Row(children: [
-                    const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
+                    Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
                     const SizedBox(width: 12),
                     Text(_deadline != null ? "${_deadline!.day}/${_deadline!.month}/${_deadline!.year}" : "Select deadline", 
                       style: AppTypography.bodyLarge.copyWith(color: _deadline != null ? AppColors.textPrimary : AppColors.textSecondary)),
@@ -300,7 +300,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.divider)),
                   child: Row(children: [
-                    const Icon(Icons.star_rounded, color: AppColors.warning, size: 20),
+                    Icon(Icons.star_rounded, color: AppColors.warning, size: 20),
                     const SizedBox(width: 12),
                     Text(_leader != null ? "⭐ ${_leader!['full_name']}" : "Assign a leader", 
                       style: AppTypography.bodyLarge.copyWith(color: _leader != null ? AppColors.textPrimary : AppColors.textSecondary)),
@@ -315,10 +315,10 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
               const SizedBox(height: 32),
       
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text("Workflow Steps", style: AppTypography.heading2),
+                Text("Workflow Steps", style: AppTypography.h2),
                 TextButton.icon(
                   onPressed: _addStep, 
-                  icon: const Icon(Icons.add_circle_rounded, size: 20, color: AppColors.primary), 
+                  icon: Icon(Icons.add_circle_rounded, size: 20, color: AppColors.primary), 
                   label: Text("Add Step", style: AppTypography.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold))
                 ),
               ]),
@@ -337,7 +337,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   ),
                   child: _isSubmitting
                     ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text("Create Task", style: AppTypography.heading3.copyWith(color: Colors.white)),
+                    : Text("Create Task", style: AppTypography.h3.copyWith(color: Colors.white)),
                 ),
               ),
             ]),
@@ -349,7 +349,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8, left: 4),
-    child: Text(text, style: AppTypography.heading3),
+    child: Text(text, style: AppTypography.h3),
   );
 
   Widget _inputField(TextEditingController ctrl, String hint, IconData icon, {int maxLines = 1}) => Container(
@@ -409,19 +409,19 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
           Container(
             width: 32, height: 32,
             decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-            child: Center(child: Text("${index + 1}", style: AppTypography.heading3.copyWith(color: AppColors.primary))),
+            child: Center(child: Text("${index + 1}", style: AppTypography.h3.copyWith(color: AppColors.primary))),
           ),
           const SizedBox(width: 12),
           Expanded(child: TextField(
             controller: ctrl, 
             decoration: InputDecoration(
               hintText: "Step title...", 
-              hintStyle: AppTypography.heading3.copyWith(color: AppColors.textSecondary),
+              hintStyle: AppTypography.h3.copyWith(color: AppColors.textSecondary),
               border: InputBorder.none, isDense: true
             ), 
-            style: AppTypography.heading3
+            style: AppTypography.h3
           )),
-          if (_steps.length > 1) GestureDetector(onTap: () => _removeStep(index), child: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 24)),
+          if (_steps.length > 1) GestureDetector(onTap: () => _removeStep(index), child: Icon(Icons.remove_circle_outline, color: AppColors.error, size: 24)),
         ]),
         const SizedBox(height: 16),
         Row(
@@ -459,7 +459,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: AppColors.divider)),
           )),
           ActionChip(
-            avatar: const Icon(Icons.person_add_rounded, size: 16, color: AppColors.primary),
+            avatar: Icon(Icons.person_add_rounded, size: 16, color: AppColors.primary),
             label: Text("Assign", style: AppTypography.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
             onPressed: () => _showUserSearchDialog(stepIndex: index),
             backgroundColor: AppColors.primary.withValues(alpha: 0.05),

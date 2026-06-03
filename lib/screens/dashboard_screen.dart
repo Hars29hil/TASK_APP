@@ -7,8 +7,8 @@ import 'home_screen.dart';
 import 'task_list_screen.dart';
 import 'chat_list_screen.dart';
 import 'activity_feed_screen.dart';
-import 'create_task_screen.dart';
-import 'login_screen.dart';
+
+import 'auth_screen.dart';
 
 /// App Shell — Root screen with a standard bottom navigation bar.
 class DashboardScreen extends StatefulWidget {
@@ -185,17 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
               const SizedBox(height: 24),
-              ListTile(
-                leading: const Icon(Icons.add_circle_rounded, color: AppColors.electricBlue),
-                title: const Text('Create New Task'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CreateTaskScreen()),
-                  ).then((_) => _fetchProjects());
-                },
-              ),
+
               ListTile(
                 leading: const Icon(Icons.logout_rounded, color: AppColors.danger),
                 title: const Text('Sign Out'),
@@ -203,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   await _supabase.auth.signOut();
                   if (mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      MaterialPageRoute(builder: (_) => const AuthScreen()),
                       (route) => false,
                     );
                   }

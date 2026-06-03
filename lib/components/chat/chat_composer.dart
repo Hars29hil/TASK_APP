@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_typography.dart';
 
@@ -44,7 +48,102 @@ class _ChatComposerState2 extends State<ChatComposer> {
     });
   }
 
+  final ImagePicker _picker = ImagePicker();
+
+  void _showAttachmentMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10))),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+            _attachmentItem(Icons.image_rounded, "Gallery", Colors.purple, _pickImage),
+            _attachmentItem(Icons.videocam_rounded, "Video", Colors.pink, _pickVideo),
+            _attachmentItem(Icons.insert_drive_file_rounded, "File", Colors.orange, _pickFiles),
+            _attachmentItem(Icons.person_rounded, "Contact", Colors.blue, _pickContact),
+          ]),
+          const SizedBox(height: 20),
+        ]),
+      ),
+    );
+  }
+
+  Widget _attachmentItem(IconData icon, String label, Color c, VoidCallback onTap) => GestureDetector(
+    onTap: onTap,
+    child: Column(children: [
+      Container(width: 60, height: 60, decoration: BoxDecoration(color: c.withValues(alpha: 0.1), shape: BoxShape.circle), child: Icon(icon, color: c, size: 28)),
+      const SizedBox(height: 8),
+      Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500)),
+    ]),
+  );
+
+  Future<void> _pickImage() async {
+    Navigator.pop(context);
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final file = PlatformFile(
+        name: image.name,
+        size: await image.length(),
+        path: image.path,
+        bytes: kIsWeb ? await image.readAsBytes() : null,
+      );
+      setState(() {
+        _attachments.add(file);
+        _canSend = true;
+      });
+      if (widget.onAttach != null) widget.onAttach!();
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    Navigator.pop(context);
+    final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
+    if (video != null) {
+      final file = PlatformFile(
+        name: video.name,
+        size: await video.length(),
+        path: video.path,
+        bytes: kIsWeb ? await video.readAsBytes() : null,
+      );
+      setState(() {
+        _attachments.add(file);
+        _canSend = true;
+      });
+      if (widget.onAttach != null) widget.onAttach!();
+    }
+  }
+
+  Future<void> _pickContact() async {
+    Navigator.pop(context);
+    if (await Permission.contacts.request().isGranted) {
+      try {
+        final contactId = await FlutterContacts.native.showPicker();
+        if (contactId != null) {
+          final contact = await FlutterContacts.get(contactId, properties: ContactProperties.all);
+          if (contact != null) {
+            final contactInfo = "${contact.displayName}\n${contact.phones.isNotEmpty ? contact.phones.first.number : ''}";
+            widget.onSend("📇 Contact: $contactInfo", null);
+          }
+        }
+      } catch (e) {
+        debugPrint("Contact error: $e");
+      }
+    }
+  }
+
   Future<void> _pickFiles() async {
+    Navigator.pop(context);
     try {
       final result = await FilePicker.pickFiles(allowMultiple: true);
       if (result != null) {
@@ -227,7 +326,7 @@ class _ChatComposerState2 extends State<ChatComposer> {
             children: [
               // Attach Btn
               GestureDetector(
-                onTap: _pickFiles,
+                onTap: _showAttachmentMenu,
                 child: Container(
                   width: 36, height: 36,
                   decoration: const BoxDecoration(color: AppColors.bg, shape: BoxShape.circle),

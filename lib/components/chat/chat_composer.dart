@@ -68,9 +68,9 @@ class _ChatComposerState2 extends State<ChatComposer> {
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(10))),
           Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-            _attachmentItem(Icons.image_rounded, "Gallery", Colors.purple, _pickImage),
+            _attachmentItem(Icons.image_rounded, "Image", Colors.purple, _pickImage),
             _attachmentItem(Icons.videocam_rounded, "Video", Colors.pink, _pickVideo),
-            _attachmentItem(Icons.insert_drive_file_rounded, "File", Colors.orange, _pickFiles),
+            _attachmentItem(Icons.insert_drive_file_rounded, "Document", Colors.orange, _pickFiles),
             _attachmentItem(Icons.person_rounded, "Contact", Colors.blue, _pickContact),
           ]),
           const SizedBox(height: 20),

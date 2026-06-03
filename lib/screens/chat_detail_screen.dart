@@ -199,14 +199,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       } else if (['mp4', 'mov', 'avi'].contains(ext)) {
         attachmentType = 'video';
       } else {
-        attachmentType = 'raw'; // Used for raw files in Cloudinary
+        attachmentType = 'file';
       }
 
-      attachmentUrl = await _uploadToCloudinary(file, attachmentType == 'raw' ? 'raw' : (attachmentType == 'image' ? 'image' : 'video'));
+      attachmentUrl = await _uploadToCloudinary(file, 'auto');
       
       if (attachmentUrl != null) {
         if (text.isEmpty) text = '[${attachmentType == 'image' ? 'Image' : (attachmentType == 'video' ? 'Video' : 'File')}]';
-        if (attachmentType == 'raw') attachmentType = 'file'; // Convert back for DB
       } else {
         // If upload failed, don't send message
         return;

@@ -54,6 +54,9 @@ class _AuthScreenState extends State<AuthScreen> {
           password: password,
         );
       }
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

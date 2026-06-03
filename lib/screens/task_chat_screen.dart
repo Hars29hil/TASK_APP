@@ -282,9 +282,9 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
           Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-            _attachmentItem(Icons.image_rounded, "Gallery", Colors.purple, _pickImage),
+            _attachmentItem(Icons.image_rounded, "Image", Colors.purple, _pickImage),
             _attachmentItem(Icons.videocam_rounded, "Video", Colors.pink, _pickVideo),
-            _attachmentItem(Icons.insert_drive_file_rounded, "File", Colors.orange, _pickFile),
+            _attachmentItem(Icons.insert_drive_file_rounded, "Document", Colors.orange, _pickFile),
             _attachmentItem(Icons.person_rounded, "Contact", Colors.blue, _pickContact),
           ]),
           const SizedBox(height: 20),

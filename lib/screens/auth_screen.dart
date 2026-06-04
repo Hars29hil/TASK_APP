@@ -2,11 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart' as g_sign_in;
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:async';
-import 'dart:convert';
 import 'dashboard_screen.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
@@ -19,163 +14,114 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  bool _isGoogleInitialized = false;
   bool _isLogin = true;
+  bool _isGoogleInitialized = false;
 
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  StreamSubscription<AuthState>? _authSubscription;
-
 
   @override
   void dispose() {
-    _authSubscription?.cancel();
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _signInWithEmail() async {
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    final supabase = Supabase.instance.client;
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-    if (email.isEmpty || password.isEmpty) return;
+    final name = _nameController.text.trim();
 
-    setState(() => _isLoading = true);
     try {
       if (_isLogin) {
-        await Supabase.instance.client.auth.signInWithPassword(
+        // --- LOGIN FLOW ---
+        await supabase.auth.signInWithPassword(
           email: email,
           password: password,
         );
+
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          );
+        }
       } else {
-        await Supabase.instance.client.auth.signUp(
+        // --- REGISTRATION FLOW ---
+        final response = await supabase.auth.signUp(
           email: email,
           password: password,
+          data: {'full_name': name},
         );
-      }
-      if (mounted) {
-        setState(() => _isLoading = false);
+
+        final user = response.user;
+        if (user != null) {
+          // Immediately create user profile in public.profiles table
+          try {
+            await supabase.from('profiles').insert({
+              'id': user.id,
+              'full_name': name,
+              'email': email,
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+          } catch (dbError) {
+            debugPrint("Database profile creation failed: $dbError");
+          }
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Registration successful! Please log in."),
+              backgroundColor: AppColors.emerald,
+            ),
+          );
+          setState(() {
+            _isLogin = true;
+            _isLoading = false;
+            _passwordController.clear();
+          });
+        }
       }
     } catch (e) {
+      debugPrint("Authentication Error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("${_isLogin ? 'Login' : 'Sign Up'} Failed: $e")),
+          SnackBar(
+            content: Text(e is AuthException ? e.message : "Authentication failed: $e"),
+            backgroundColor: AppColors.danger,
+          ),
         );
         setState(() => _isLoading = false);
       }
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _setupAuthListener();
-  }
-
-  void _setupAuthListener() {
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      if (!mounted) return;
-      final AuthChangeEvent event = data.event;
-      if (event == AuthChangeEvent.signedIn && data.session != null) {
-        _handleSuccessfulLogin();
-      }
-    });
-  }
-
-  Future<void> _handleSuccessfulLogin() async {
-    setState(() => _isLoading = true);
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-
-      // 1. Check if user profile exists
-      final profileResponse = await Supabase.instance.client
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle();
-
-      // 2. Insert if not exists
-      if (profileResponse == null) {
-        // Extract meta data
-        final meta = user.userMetadata ?? {};
-        final name =
-            meta['full_name'] ??
-            meta['name'] ??
-            user.email?.split('@')[0] ??
-            'User';
-        // Note: If avatar and provider columns don't exist in Supabase, this will fail.
-        // In Supabase Auth, they can just be fetched from user metadata.
-
-        await Supabase.instance.client.from('profiles').insert({
-          'id': user.id,
-          'full_name': name,
-          'email': user.email ?? '',
-          'role': 'user', // Default role
-          // Note: If avatar and provider columns don't exist in Supabase, this will fail.
-          // In Supabase Auth, they can just be fetched from user metadata.
-          // But to strictly follow the user's requirement, we will try to save them if added.
-          // 'avatar_url': avatarUrl,
-        });
-      }
-
-      // 3. Get FCM Token & update profile
-      String? fcmToken;
-      try {
-        fcmToken = await FirebaseMessaging.instance.getToken();
-      } catch (e) {
-        debugPrint("Failed to get FCM token: $e");
-      }
-
-      if (fcmToken != null) {
-        await Supabase.instance.client
-            .from('profiles')
-            .update({'fcm_token': fcmToken})
-            .eq('id', user.id);
-      }
-
-      // Navigate to Dashboard
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
-        );
-      }
-    } catch (e) {
-      debugPrint("Error handling login: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error setting up profile: $e")));
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  /// Google Sign In logic utilizing Supabase's built-in Google Auth or google_sign_in package
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
+      final supabase = Supabase.instance.client;
+
       if (kIsWeb) {
-        // Use Supabase native OAuth flow for Web (redirects the browser)
-        await Supabase.instance.client.auth.signInWithOAuth(
+        await supabase.auth.signInWithOAuth(
           OAuthProvider.google,
         );
-        // Execution stops here because the browser redirects.
         return;
       }
 
-      const webClientId =
-          '105578954002-reeatjhfeu2glt1mb2nadqs8mqs7ct1d.apps.googleusercontent.com'; // Replace with real one
-      const iosClientId =
-          'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com'; // Replace with real one
+      const webClientId = '641104976519-dm4mmkivc48b7c9jg1e2o93umupjmhse.apps.googleusercontent.com';
+      const iosClientId = 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com'; // or null
 
       if (!_isGoogleInitialized) {
         await g_sign_in.GoogleSignIn.instance.initialize(
-          clientId: defaultTargetPlatform == TargetPlatform.iOS
-              ? iosClientId
-              : null,
+          clientId: defaultTargetPlatform == TargetPlatform.iOS ? iosClientId : null,
           serverClientId: webClientId,
         );
         _isGoogleInitialized = true;
@@ -189,52 +135,51 @@ class _AuthScreenState extends State<AuthScreen> {
         throw 'No ID Token found.';
       }
 
-      await Supabase.instance.client.auth.signInWithIdToken(
+      final response = await supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Google Sign-In Failed: $e")));
+
+      final user = response.user;
+      if (user == null) {
+        throw 'Google Sign-In failed: user object is null';
       }
-      setState(() => _isLoading = false);
-    }
-  }
 
-  /// Apple Sign In logic utilizing Supabase
-  Future<void> _signInWithApple() async {
-    setState(() => _isLoading = true);
-    try {
-      final rawNonce = Supabase.instance.client.auth.generateRawNonce();
-      final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+      // Check / Create profile row in profiles table
+      final profile = await supabase
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
 
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: hashedNonce,
-      );
+      if (profile == null) {
+        final meta = user.userMetadata ?? {};
+        final name = meta['full_name'] ?? meta['name'] ?? user.email?.split('@')[0] ?? 'User';
+        final avatarUrl = meta['avatar_url'] ?? meta['picture'] ?? '';
 
-      final idToken = credential.identityToken;
-      if (idToken == null) {
-        throw const AuthException(
-          'Could not find ID Token from Apple Sign In.',
+        await supabase.from('profiles').insert({
+          'id': user.id,
+          'full_name': name,
+          'email': user.email ?? '',
+          'avatar_url': avatarUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
       }
-
-      await Supabase.instance.client.auth.signInWithIdToken(
-        provider: OAuthProvider.apple,
-        idToken: idToken,
-        nonce: rawNonce,
-      );
     } catch (e) {
+      debugPrint("Google Sign-In Failed: $e");
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Apple Sign-In Failed: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Google Sign-In Failed: $e"),
+            backgroundColor: AppColors.danger,
+          ),
+        );
       }
       setState(() => _isLoading = false);
     }
@@ -261,150 +206,200 @@ class _AuthScreenState extends State<AuthScreen> {
                   horizontal: 32.0,
                   vertical: 48.0,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Logo or Header
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: AppColors.electricBlue.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.task_alt_rounded,
-                          size: 40,
-                          color: AppColors.electricBlue,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Brand Logo
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: AppColors.electricBlue.withValues(alpha: 0.05),
+                          shape: BoxShape.circle,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    Text(
-                      _isLogin ? "Welcome back" : "Create an Account",
-                      style: AppTypography.h2,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isLogin
-                          ? "Sign in to access your workspace"
-                          : "Sign up to get started",
-                      style: AppTypography.bodyMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 48),
-
-                    if (_isLoading)
-                      const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.electricBlue,
-                        ),
-                      )
-                    else ...[
-                      // Email/Password fields (shown in both login and signup)
-                      TextField(
-                        controller: _emailController,
-                        decoration: InputDecoration(
-                          labelText: "Email",
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: "Password",
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _signInWithEmail,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.electricBlue,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: Text(
-                            _isLogin ? "Log In" : "Sign Up",
-                            style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          const Expanded(child: Divider()),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text("OR", style: AppTypography.bodySmall),
-                          ),
-                          const Expanded(child: Divider()),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      _SocialButton(
-                        text: _isLogin
-                            ? "Continue with Google"
-                            : "Sign up with Google",
-                        iconUrl:
-                            "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png",
-                        onPressed: _signInWithGoogle,
-                      ),
-                      const SizedBox(height: 16),
-                      if (!kIsWeb &&
-                          (defaultTargetPlatform == TargetPlatform.iOS ||
-                              defaultTargetPlatform == TargetPlatform.macOS))
-                        _SocialButton(
-                          text: _isLogin ? "Continue with Apple" : "Sign up with Apple",
-                          iconData: Icons.apple,
-                          onPressed: _signInWithApple,
-                        ),
-                      const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _isLogin
-                                ? "Don't have an account?"
-                                : "Already have an account?",
-                            style: AppTypography.bodySmall,
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _isLogin = !_isLogin;
-                              });
-                            },
-                            child: Text(
-                              _isLogin ? "Sign up" : "Log in",
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.electricBlue,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        child: ClipOval(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Image.asset(
+                              'assets/app_icon.png',
+                              fit: BoxFit.contain,
                             ),
                           ),
-                        ],
+                        ),
                       ),
+                      const SizedBox(height: 24),
+
+                      // Headers
+                      Text(
+                        _isLogin ? "Welcome Back" : "Create Account",
+                        style: AppTypography.h2,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _isLogin
+                            ? "Sign in to access your workspace"
+                            : "Register to start managing tasks",
+                        style: AppTypography.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+
+                      if (_isLoading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24.0),
+                          child: CircularProgressIndicator(
+                            color: AppColors.electricBlue,
+                          ),
+                        )
+                      else ...[
+                        // Full Name Input (Register Only)
+                        if (!_isLogin) ...[
+                          TextFormField(
+                            controller: _nameController,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: InputDecoration(
+                              labelText: "Full Name",
+                              hintText: "John Doe",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(color: AppColors.border),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            ),
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return "Please enter your name";
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Email Input
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            labelText: "Email",
+                            hintText: "name@example.com",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: AppColors.border),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return "Please enter your email";
+                            }
+                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val.trim())) {
+                              return "Please enter a valid email address";
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Password Input
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            labelText: "Password",
+                            hintText: "••••••••",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: AppColors.border),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.isEmpty) {
+                              return "Please enter your password";
+                            }
+                            if (val.length < 6) {
+                              return "Password must be at least 6 characters";
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Submit Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _handleSubmit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.electricBlue,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              _isLogin ? "Log In" : "Register",
+                              style: AppTypography.button.copyWith(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Divider OR
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text("OR", style: AppTypography.bodySmall),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Google Sign-In Button
+                        _SocialButton(
+                          text: "Continue with Google",
+                          iconUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png",
+                          onPressed: _signInWithGoogle,
+                        ),
+                        const SizedBox(height: 24),
+
+                        // View Toggle
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _isLogin ? "Don't have an account?" : "Already have an account?",
+                              style: AppTypography.bodySmall,
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isLogin = !_isLogin;
+                                  _formKey.currentState?.reset();
+                                });
+                              },
+                              child: Text(
+                                _isLogin ? "Register" : "Log In",
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.electricBlue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -417,14 +412,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
 class _SocialButton extends StatelessWidget {
   final String text;
-  final String? iconUrl;
-  final IconData? iconData;
+  final String iconUrl;
   final VoidCallback onPressed;
 
   const _SocialButton({
     required this.text,
-    this.iconUrl,
-    this.iconData,
+    required this.iconUrl,
     required this.onPressed,
   });
 
@@ -446,10 +439,7 @@ class _SocialButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (iconUrl != null)
-              Image.network(iconUrl!, width: 24, height: 24)
-            else if (iconData != null)
-              Icon(iconData, size: 28, color: Colors.black),
+            Image.network(iconUrl, width: 24, height: 24),
             const SizedBox(width: 12),
             Text(
               text,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/auth_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -132,14 +131,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Check if there is an active session
-    final session = Supabase.instance.client.auth.currentSession;
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Task App',
       theme: buildLightTheme(),
-      home: session != null ? const DashboardScreen() : const AuthScreen(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -33,6 +33,13 @@
                 <action android:name="FLUTTER_NOTIFICATION_CLICK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- Supabase OAuth Deep Link -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="io.supabase.anandswamiapp" android:host="login-callback" />
+            </intent-filter>
         </activity>
         
         <meta-data

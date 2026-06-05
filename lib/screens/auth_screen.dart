@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:async';
+import 'package:google_sign_in/google_sign_in.dart' as g_sign_in;
 import 'dashboard_screen.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
@@ -21,6 +22,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isGoogleInitialized = false;
 
   StreamSubscription<AuthState>? _authStateSubscription;
 
@@ -123,13 +125,69 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       final supabase = Supabase.instance.client;
 
-      await supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: kIsWeb ? null : 'io.supabase.anandswamiapp://login-callback/',
+      if (kIsWeb) {
+        await supabase.auth.signInWithOAuth(
+          OAuthProvider.google,
+        );
+        return;
+      }
+
+      // Native Google Sign-In for Mobile
+      const webClientId = '641104976519-dm4mmkivc48b7c9jg1e2o93umupjmhse.apps.googleusercontent.com';
+      const iosClientId = 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com'; // or null
+
+      if (!_isGoogleInitialized) {
+        await g_sign_in.GoogleSignIn.instance.initialize(
+          clientId: defaultTargetPlatform == TargetPlatform.iOS ? iosClientId : null,
+          serverClientId: webClientId,
+        );
+        _isGoogleInitialized = true;
+      }
+
+      final googleUser = await g_sign_in.GoogleSignIn.instance.authenticate();
+      final googleAuth = googleUser.authentication;
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw 'No ID Token found.';
+      }
+
+      final response = await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
       );
-      
-      // We do not set _isLoading = false here because the redirect will leave the app,
-      // and when it returns, the auth state listener will handle navigation.
+
+      final user = response.user;
+      if (user == null) {
+        throw 'Google Sign-In failed: user object is null';
+      }
+
+      // Check / Create profile row in profiles table
+      final profile = await supabase
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (profile == null) {
+        final meta = user.userMetadata ?? {};
+        final name = meta['full_name'] ?? meta['name'] ?? user.email?.split('@')[0] ?? 'User';
+        final avatarUrl = meta['avatar_url'] ?? meta['picture'] ?? '';
+
+        await supabase.from('profiles').insert({
+          'id': user.id,
+          'full_name': name,
+          'email': user.email ?? '',
+          'avatar_url': avatarUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      }
     } catch (e) {
       debugPrint("Google Sign-In Failed: $e");
       if (mounted) {
